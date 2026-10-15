@@ -1,0 +1,8 @@
+DAO\MesaDAO.class
+DAO\ProductoDAO.class
+DAO\CategoriaDAO.class
+DAO\PedidoDAO.class
+Conexion\JPAUtil.class
+DAO\CuentaDAO.class
+DAO\KdsDAO.class
+Pruebas\Persistencia.class

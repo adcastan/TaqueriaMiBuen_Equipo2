@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="3.1" xmlns="https://jakarta.ee/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_0.xsd">
+  <persistence-unit name="PersistenciaTaqueriaMiBuen" transaction-type="RESOURCE_LOCAL">
+    <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+    <class>Entidades.Caja</class>
+    <class>Entidades.Cancelacion</class>
+    <class>Entidades.Categoria</class>
+    <class>Entidades.Compra</class>
+    <class>Entidades.Corte</class>
+    <class>Entidades.Cuenta</class>
+    <class>Entidades.DatosEntrega</class>
+    <class>Entidades.DetalleCompra</class>
+    <class>Entidades.DetalleExtra</class>
+    <class>Entidades.DetallePedido</class>
+    <class>Entidades.Ingrediente</class>
+    <class>Entidades.IngredienteExtra</class>
+    <class>Entidades.Mesa</class>
+    <class>Entidades.Pago</class>
+    <class>Entidades.Pedido</class>
+    <class>Entidades.PedidoDomicilio</class>
+    <class>Entidades.PedidoLocal</class>
+    <class>Entidades.PedidoParaLlevar</class>
+    <class>Entidades.Producto</class>
+    <class>Entidades.ProductoIngrediente</class>
+    <class>Entidades.Proveedor</class>
+    <class>Entidades.ReporteVenta</class>
+    <class>Entidades.Usuario</class>
+    <properties>
+      <property name="jakarta.persistence.jdbc.url" value="jdbc:mysql://localhost:3306/taqueria_mi_buen?zeroDateTimeBehavior=CONVERT_TO_NULL"/>
+      <property name="jakarta.persistence.jdbc.user" value="root"/>
+      <property name="jakarta.persistence.jdbc.driver" value="com.mysql.cj.jdbc.Driver"/>
+      <property name="jakarta.persistence.jdbc.password" value="1234"/>
+      <property name="hibernate.cache.provider_class" value="org.hibernate.cache.NoCacheProvider"/>
+      <property name="jakarta.persistence.schema-generation.database.action" value="none"/>
+    </properties>
+  </persistence-unit>
+</persistence>
