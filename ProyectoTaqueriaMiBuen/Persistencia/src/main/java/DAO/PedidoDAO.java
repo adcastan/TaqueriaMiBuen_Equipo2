@@ -22,16 +22,16 @@ public class PedidoDAO {
     private final MesaDAO mesaDAO = new MesaDAO();
 
     /**
-     * Inserta un pedido nuevo con sus detalles y regresa su id.
-     * Si es pedido local y la mesa ya esta ocupada, se rechaza.
+     * Inserta un pedido nuevo con sus detalles y regresa su id. Si es pedido
+     * local y la mesa ya esta ocupada, se rechaza.
      */
     public int insertarPedido(Pedido pedido) {
         return insertarPedido(pedido, false);
     }
 
     /**
-     * Igual que insertarPedido(pedido), pero con cuenta separada se permite
-     * abrir otro pedido en una mesa que ya esta OCUPADA.
+     * insertarPedido(pedido) pero con cuenta separada. 
+     * Permite abrir otro pedido en una mesa que ya esta OCUPADA.
      */
     public int insertarPedido(Pedido pedido, boolean cuentaSeparada) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -82,8 +82,8 @@ public class PedidoDAO {
     }
 
     /**
-     * Inserta productos nuevos en pedidos abiertos. Cada detalle debe traer
-     * su pedido asignado. Quedan al final de la cola de cocina.
+     * Inserta productos nuevos en pedidos abiertos. 
+     * Cada detalle debe traer su pedido asignado y queda al final de la cola de cocina.
      */
     public void insertarDetalles(List<DetallePedido> detalles) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -140,7 +140,8 @@ public class PedidoDAO {
     }
 
     /**
-     * Pedido abierto o por cobrar de una mesa. Regresa null si la mesa no tiene.
+     * Pedido abierto o por cobrar de una mesa. 
+     * Regresa null si la mesa no tiene.
      */
     public Pedido buscarActivoPorMesa(int idMesa) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -203,8 +204,13 @@ public class PedidoDAO {
     }
 
     /**
-     * Cancela el pedido y guarda el motivo y quien lo autorizo.
-     * Si es pedido local, la mesa vuelve a quedar DISPONIBLE.
+     * Cancela el pedido y guarda el motivo y quien lo autorizo. 
+     * Si es pedido local y la mesa ya no tiene otro pedido activo (cuenta separada), la mesa
+     * vuelve a quedar DISPONIBLE.
+     * @param idPedido idPedido
+     * @param motivo motivo de cancelacion.
+     * @param autorizadaPor persona que lo autorizo.
+     * @return 
      */
     public Pedido cancelarPedido(int idPedido, String motivo, String autorizadaPor) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -213,7 +219,18 @@ public class PedidoDAO {
             Pedido pedido = em.find(Pedido.class, idPedido);
             pedido.cancelar(motivo, autorizadaPor);
             if (pedido instanceof PedidoLocal) {
-                ((PedidoLocal) pedido).getMesa().setEstado(EstadoMesa.DISPONIBLE);
+                Mesa mesa = ((PedidoLocal) pedido).getMesa();
+                Long otrosActivos = em.createQuery(
+                        "SELECT COUNT(p) FROM PedidoLocal p WHERE p.mesa.idMesa = :idMesa "
+                        + "AND p.idPedido <> :idPedido AND p.estado IN (:abierto, :porCobrar)", Long.class)
+                        .setParameter("idMesa", mesa.getIdMesa())
+                        .setParameter("idPedido", idPedido)
+                        .setParameter("abierto", EstadoPedido.ABIERTO)
+                        .setParameter("porCobrar", EstadoPedido.POR_COBRAR)
+                        .getSingleResult();
+                if (otrosActivos == 0) {
+                    mesa.setEstado(EstadoMesa.DISPONIBLE);
+                }
             }
             em.persist(pedido.getCancelacion());
             em.getTransaction().commit();
@@ -228,15 +245,23 @@ public class PedidoDAO {
         }
     }
 
+    /**
+     * Pedidos abiertos o por cobrar, con sus detalles cargados para mostrar su
+     * total en pantalla.
+     */
     public List<Pedido> listarActivos() {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
-            return em.createQuery(
+            List<Pedido> pedidos = em.createQuery(
                     "SELECT p FROM Pedido p WHERE p.estado IN (:abierto, :porCobrar) ORDER BY p.fechaApertura",
                     Pedido.class)
                     .setParameter("abierto", EstadoPedido.ABIERTO)
                     .setParameter("porCobrar", EstadoPedido.POR_COBRAR)
                     .getResultList();
+            for (Pedido pedido : pedidos) {
+                cargarDetalles(pedido);
+            }
+            return pedidos;
         } finally {
             em.close();
         }
@@ -252,7 +277,7 @@ public class PedidoDAO {
         return ultimo + 1;
     }
 
-    // Lee detalles y extras antes de cerrar el EntityManager para poder usarlos despues
+    // Lee detalles y extras antes de cerrar el EntityManager para usarlos despues
     private void cargarDetalles(Pedido pedido) {
         for (DetallePedido detalle : pedido.getDetalles()) {
             detalle.getExtras().size();

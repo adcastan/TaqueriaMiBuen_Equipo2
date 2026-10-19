@@ -96,4 +96,46 @@ public class ProductoDAO {
             em.close();
         }
     }
+
+    /**
+     * Busca un producto por su id y carga sus extras. 
+     * Lo usa el servicio de pedidos para armar cada detalle.
+     * @param idProducto
+     * @return
+     */
+    public Producto buscarPorId(int idProducto) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            Producto producto = em.find(Producto.class, idProducto);
+            if (producto != null) {
+                producto.getExtras().size(); // Antes de cerrar el EntityManager, se leen.
+            }
+            return producto;
+        } finally {
+            em.close();
+        }
+    }
+
+    /**
+     * Todo el menu (disponibles y agotados) con sus extras, ordenado por
+     * categoria. 
+     * Los agotados se muestran deshabilitados en la pantalla.
+     *
+     * @return
+     */
+    public List<Producto> listarConExtras() {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            List<Producto> productos = em.createQuery(
+                    "SELECT p FROM Producto p ORDER BY p.categoria.orden, p.nombre", Producto.class)
+                    .getResultList();
+            for (Producto p : productos) {
+                p.getExtras().size();
+            }
+            return productos;
+        } finally {
+            em.close();
+        }
+    }
+
 }
