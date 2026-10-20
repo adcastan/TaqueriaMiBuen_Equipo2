@@ -2,6 +2,7 @@ package DAO;
 
 import Conexion.JPAUtil;
 import Entidades.Cuenta;
+import IAccesoDatos.ICuentaDAO;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 
@@ -10,11 +11,12 @@ import java.util.List;
  *
  * @author Equipo 2
  */
-public class CuentaDAO {
+public class CuentaDAO implements ICuentaDAO{
 
     /**
      * Guarda la cuenta. Si su usuario es nuevo tambien se guarda.
      */
+    @Override
     public void registrar(Cuenta cuenta) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -31,6 +33,7 @@ public class CuentaDAO {
         }
     }
 
+    @Override
     public Cuenta buscarPorUsuario(int idUsuario) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -48,6 +51,7 @@ public class CuentaDAO {
      * Cuentas de usuarios activos. Como el PIN esta guardado con hash,
      * para iniciar sesion se recorren estas cuentas y se usa validarPin().
      */
+    @Override
     public List<Cuenta> buscarActivas() {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {

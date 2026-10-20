@@ -2,6 +2,7 @@ package DAO;
 
 import Conexion.JPAUtil;
 import Entidades.Categoria;
+import IAccesoDatos.ICategoriaDAO;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 
@@ -10,8 +11,9 @@ import java.util.List;
  *
  * @author Equipo 2
  */
-public class CategoriaDAO {
+public class CategoriaDAO implements ICategoriaDAO{
 
+    @Override
     public void registrar(Categoria categoria) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -28,6 +30,7 @@ public class CategoriaDAO {
         }
     }
 
+    @Override
     public Categoria buscarPorNombre(String nombre) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -41,6 +44,7 @@ public class CategoriaDAO {
         }
     }
 
+    @Override
     public List<Categoria> listar() {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {

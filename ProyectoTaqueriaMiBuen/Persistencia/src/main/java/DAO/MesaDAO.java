@@ -3,6 +3,7 @@ package DAO;
 import Conexion.JPAUtil;
 import Enums.EstadoMesa;
 import Entidades.Mesa;
+import IAccesoDatos.IMesaDAO;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import java.util.List;
@@ -12,8 +13,9 @@ import java.util.List;
  *
  * @author Equipo 2
  */
-public class MesaDAO {
+public class MesaDAO implements IMesaDAO{
 
+    @Override
     public void registrar(Mesa mesa) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -30,6 +32,7 @@ public class MesaDAO {
         }
     }
 
+    @Override
     public Mesa buscarPorId(int idMesa) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -39,6 +42,7 @@ public class MesaDAO {
         }
     }
 
+    @Override
     public Mesa buscarPorNumero(int numero) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -51,6 +55,7 @@ public class MesaDAO {
         }
     }
 
+    @Override
     public List<Mesa> listarDisponibles() {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -62,6 +67,7 @@ public class MesaDAO {
         }
     }
 
+    @Override
     public void actualizarEstado(int idMesa, EstadoMesa estado) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -82,6 +88,7 @@ public class MesaDAO {
     /**
      * Todas las mesas ordenadas por numero.
      */
+    @Override
     public List<Mesa> listar() {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -96,6 +103,7 @@ public class MesaDAO {
      * asi nadie mas la puede tomar al mismo tiempo. Se usa dentro de
      * PedidoDAO.insertarPedido.
      */
+    @Override
     public Mesa bloquearParaActualizar(EntityManager em, int idMesa) {
         return em.find(Mesa.class, idMesa, LockModeType.PESSIMISTIC_WRITE);
     }

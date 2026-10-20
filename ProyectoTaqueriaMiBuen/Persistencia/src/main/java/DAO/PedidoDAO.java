@@ -9,6 +9,7 @@ import Entidades.Mesa;
 import Entidades.Pedido;
 import Entidades.PedidoDomicilio;
 import Entidades.PedidoLocal;
+import IAccesoDatos.IPedidoDAO;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 
@@ -17,7 +18,7 @@ import java.util.List;
  *
  * @author Equipo 2
  */
-public class PedidoDAO {
+public class PedidoDAO implements IPedidoDAO{
 
     private final MesaDAO mesaDAO = new MesaDAO();
 
@@ -25,6 +26,7 @@ public class PedidoDAO {
      * Inserta un pedido nuevo con sus detalles y regresa su id. Si es pedido
      * local y la mesa ya esta ocupada, se rechaza.
      */
+    @Override
     public int insertarPedido(Pedido pedido) {
         return insertarPedido(pedido, false);
     }
@@ -33,6 +35,7 @@ public class PedidoDAO {
      * insertarPedido(pedido) pero con cuenta separada. 
      * Permite abrir otro pedido en una mesa que ya esta OCUPADA.
      */
+    @Override
     public int insertarPedido(Pedido pedido, boolean cuentaSeparada) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -85,6 +88,7 @@ public class PedidoDAO {
      * Inserta productos nuevos en pedidos abiertos. 
      * Cada detalle debe traer su pedido asignado y queda al final de la cola de cocina.
      */
+    @Override
     public void insertarDetalles(List<DetallePedido> detalles) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -114,6 +118,7 @@ public class PedidoDAO {
     /**
      * Siguiente turno libre de la cola de cocina (el mayor + 1).
      */
+    @Override
     public int siguienteOrdenCola() {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -126,6 +131,7 @@ public class PedidoDAO {
     /**
      * Busca el pedido y carga sus detalles con sus extras.
      */
+    @Override
     public Pedido buscarPorId(int idPedido) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -143,6 +149,7 @@ public class PedidoDAO {
      * Pedido abierto o por cobrar de una mesa. 
      * Regresa null si la mesa no tiene.
      */
+    @Override
     public Pedido buscarActivoPorMesa(int idMesa) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -164,6 +171,7 @@ public class PedidoDAO {
         }
     }
 
+    @Override
     public void actualizarEstado(int idPedido, EstadoPedido estado) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -184,6 +192,7 @@ public class PedidoDAO {
     /**
      * Cierra el pedido: calcula el total y lo deja POR_COBRAR.
      */
+    @Override
     public Pedido cerrarPedido(int idPedido) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -212,6 +221,7 @@ public class PedidoDAO {
      * @param autorizadaPor persona que lo autorizo.
      * @return 
      */
+    @Override
     public Pedido cancelarPedido(int idPedido, String motivo, String autorizadaPor) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -249,6 +259,7 @@ public class PedidoDAO {
      * Pedidos abiertos o por cobrar, con sus detalles cargados para mostrar su
      * total en pantalla.
      */
+    @Override
     public List<Pedido> listarActivos() {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {

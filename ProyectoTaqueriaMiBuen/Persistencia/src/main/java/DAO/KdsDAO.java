@@ -3,6 +3,7 @@ package DAO;
 import Conexion.JPAUtil;
 import Enums.EstadoPedido;
 import Entidades.DetallePedido;
+import IAccesoDatos.IKdsDAO;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 
@@ -11,12 +12,13 @@ import java.util.List;
  *
  * @author Equipo 2
  */
-public class KdsDAO {
+public class KdsDAO implements IKdsDAO{
 
     /**
      * Detalles que faltan por preparar en orden de llegada.
      * No incluye los de pedidos cancelados.
      */
+    @Override
     public List<DetallePedido> consultarPendientes() {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -34,6 +36,7 @@ public class KdsDAO {
         }
     }
 
+    @Override
     public void marcarListo(int idDetalle) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -54,6 +57,7 @@ public class KdsDAO {
     /**
      * La terminal de cocina avisa que sigue conectada.
      */
+    @Override
     public void registrarLatido(int idTerminal) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -76,6 +80,7 @@ public class KdsDAO {
      * Segundos desde la ultima conexión de cualquier terminal.
      * Regresa -1 si ninguna terminal se ha conectado.
      */
+    @Override
     public int segundosDesdeUltimoLatido() {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {

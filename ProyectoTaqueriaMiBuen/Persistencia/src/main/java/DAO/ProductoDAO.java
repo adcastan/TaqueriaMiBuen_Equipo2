@@ -2,6 +2,7 @@ package DAO;
 
 import Conexion.JPAUtil;
 import Entidades.Producto;
+import IAccesoDatos.IProductoDAO;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,8 +12,9 @@ import java.util.List;
  *
  * @author Equipo 2
  */
-public class ProductoDAO {
+public class ProductoDAO implements IProductoDAO{
 
+    @Override
     public void registrar(Producto producto) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -29,6 +31,7 @@ public class ProductoDAO {
         }
     }
 
+    @Override
     public Producto buscarPorNombre(String nombre) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -45,6 +48,7 @@ public class ProductoDAO {
     /**
      * Busca el producto y carga tambien los extras que admite.
      */
+    @Override
     public Producto buscarConExtras(String nombre) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -66,6 +70,7 @@ public class ProductoDAO {
     /**
      * Productos que se pueden vender, en el orden del menu.
      */
+    @Override
     public List<Producto> listarDisponibles() {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -81,6 +86,7 @@ public class ProductoDAO {
     /**
      * De la lista de ids, regresa los productos que ya no estan disponibles.
      */
+    @Override
     public List<Integer> buscarNoDisponibles(List<Integer> ids) {
         if (ids == null || ids.isEmpty()) {
             return new ArrayList<>();
@@ -103,6 +109,7 @@ public class ProductoDAO {
      * @param idProducto
      * @return
      */
+    @Override
     public Producto buscarPorId(int idProducto) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -123,6 +130,7 @@ public class ProductoDAO {
      *
      * @return
      */
+    @Override
     public List<Producto> listarConExtras() {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
