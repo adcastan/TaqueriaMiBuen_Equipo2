@@ -55,6 +55,18 @@ public class Persistencia {
             System.out.println("PIN 1234 correcto: " + cuentaLeida.validarPin("1234"));
             System.out.println("PIN 9999 correcto: " + cuentaLeida.validarPin("9999"));
 
+            // 1.1 Registrar un administrador y un cocinero
+            System.out.println("--- 1.1 Registrar administrador y cocinero ---");
+            Usuario admin = new Usuario("Administrador de prueba", "6441000001", LocalDate.now());
+            Cuenta cuentaAdmin = new Cuenta(admin, "1111", Rol.ADMINISTRADOR);
+            cuentaDAO.registrar(cuentaAdmin);
+            System.out.println("Guardado: " + cuentaAdmin);
+            System.out.println("Puede autorizar cancelaciones: " + cuentaAdmin.puedeAutorizarCancelacion());
+
+            Usuario cocinero = new Usuario("Cocinero de prueba", "6441000004", LocalDate.now());
+            Cuenta cuentaCocinero = new Cuenta(cocinero, "4444", Rol.COCINERO);
+            cuentaDAO.registrar(cuentaCocinero);
+            System.out.println("Guardado: " + cuentaCocinero);
             // 2. Registrar categoria y producto (si ya existen se reutilizan)
             System.out.println("--- 2. Registrar categoria y producto ---");
             Categoria postres = categoriaDAO.buscarPorNombre("Postres");
