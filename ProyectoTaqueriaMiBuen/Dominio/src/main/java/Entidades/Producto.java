@@ -1,5 +1,6 @@
 package Entidades;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -45,7 +46,8 @@ public class Producto implements Serializable {
     @Column(name = "disponible", nullable = false)
     private boolean disponible = true;
 
-    @ManyToMany
+// PERSIST: al registrar un producto nuevo tambien se guardan sus extras nuevos
+    @ManyToMany(cascade = CascadeType.PERSIST)
     @JoinTable(name = "producto_extra",
             joinColumns = @JoinColumn(name = "id_producto"),
             inverseJoinColumns = @JoinColumn(name = "id_extra"))
