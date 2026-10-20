@@ -1,0 +1,39 @@
+<%--
+Encabezado que comparten todas las pantallas despues del login.
+Cada pagina pone el atributo "seccion" antes de incluirlo para marcar el boton activo del menu.
+--%>
+<%
+    String seccion = (String) request.getAttribute("seccion");
+    String rolSesion = (String) session.getAttribute("rol");
+    boolean esAdmin = "ADMINISTRADOR".equals(rolSesion);
+    boolean esCocinero = "COCINERO".equals(rolSesion);
+%>
+<header class="app-header">
+    <a class="brand" href="<%= esCocinero ? "kds.jsp" : "mesas.jsp"%>">
+        <span class="brand-mark">A</span>
+        <div>
+            <strong>MI BUEN <span class="muted">/ ASADA POS</span></strong>
+            <small>Tu turno. Tu ritmo. Tu estacion.</small>
+        </div>
+    </a>
+    <nav class="header-nav" aria-label="Menu principal">
+        <% if (!esCocinero) {%>
+        <a class="<%= "mesas".equals(seccion) ? "active" : ""%>" href="mesas.jsp">Comedor / Mesas</a>
+        <a class="<%= "llevar".equals(seccion) ? "active" : ""%>" href="tomarPedido.jsp?tipo=LLEVAR">Para llevar</a>
+        <a class="<%= "domicilio".equals(seccion) ? "active" : ""%>" href="datosEntrega.jsp">A domicilio</a>
+        <% } %>
+        <% if (esAdmin || esCocinero) {%>
+        <a class="<%= "cocina".equals(seccion) ? "active" : ""%>" href="kds.jsp">Monitor de cocina</a>
+        <% }%>
+    </nav>
+    <div class="header-side">
+        <span class="clock" id="reloj"></span>
+        <div class="user">
+            <div>
+                <strong>${sessionScope.usuario.nombre}</strong>
+                <small>${sessionScope.rol}</small>
+            </div>
+            <button class="btn secondary compact" type="button" onclick="cerrarSesion()">Salir</button>
+        </div>
+    </div>
+</header>
