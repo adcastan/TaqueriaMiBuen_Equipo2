@@ -2729,6 +2729,49 @@ small.form-error:empty{
     color:var(--red)
 }
 
+/* Cobro en caja */
+.resumen-caja{
+    margin-bottom:16px;
+    padding:18px
+}
+.resumen-caja .mini-stats{
+    grid-template-columns:repeat(3,1fr);
+    margin:12px 0 0
+}
+.resumen-caja .form-grid{
+    max-width:320px
+}
+.cola-cobro{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+    gap:14px;
+    align-items:start
+}
+.cola-cobro>.empty{
+    grid-column:1/-1
+}
+.cola-cobro .delivery-order h3{
+    margin:10px 0;
+    font-size:22px
+}
+.cola-cobro .delivery-order p{
+    margin:6px 0 0;
+    font-size:12px
+}
+.metodos-pago{
+    display:flex;
+    gap:8px;
+    margin:4px 0 12px
+}
+.metodos-pago .category-tab{
+    flex:1
+}
+@media(max-width:760px){
+    .resumen-caja .mini-stats{
+        grid-template-columns:1fr
+    }
+}
+
 @media(max-width:760px){
     .header-nav a{
         padding:10px 9px;

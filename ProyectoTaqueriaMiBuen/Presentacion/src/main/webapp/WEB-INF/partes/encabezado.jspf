@@ -7,6 +7,7 @@ Cada pagina pone el atributo "seccion" antes de incluirlo para marcar el boton a
     String rolSesion = (String) session.getAttribute("rol");
     boolean esAdmin = "ADMINISTRADOR".equals(rolSesion);
     boolean esCocinero = "COCINERO".equals(rolSesion);
+    boolean esCajero = "CAJERO".equals(rolSesion);
 %>
 <header class="app-header">
     <a class="brand" href="<%= esCocinero ? "kds.jsp" : "mesas.jsp"%>">
@@ -21,6 +22,9 @@ Cada pagina pone el atributo "seccion" antes de incluirlo para marcar el boton a
         <a class="<%= "mesas".equals(seccion) ? "active" : ""%>" href="mesas.jsp">Comedor / Mesas</a>
         <a class="<%= "llevar".equals(seccion) ? "active" : ""%>" href="tomarPedido.jsp?tipo=LLEVAR">Para llevar</a>
         <a class="<%= "domicilio".equals(seccion) ? "active" : ""%>" href="datosEntrega.jsp">A domicilio</a>
+        <% } %>
+        <% if (esAdmin || esCajero) {%>
+        <a class="<%= "cobro".equals(seccion) ? "active" : ""%>" href="cobro.jsp">Cobro</a>
         <% } %>
         <% if (esAdmin || esCocinero) {%>
         <a class="<%= "cocina".equals(seccion) ? "active" : ""%>" href="kds.jsp">Monitor de cocina</a>

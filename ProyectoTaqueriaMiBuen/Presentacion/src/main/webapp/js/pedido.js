@@ -60,7 +60,7 @@ function todosLosProductos() {
     const lista = [];
     for (const categoria of menu) {
         for (const producto of categoria.productos) {
-            lista.push({ ...producto, categoria: categoria.nombre });
+            lista.push({...producto, categoria: categoria.nombre});
         }
     }
     return lista;
@@ -74,7 +74,7 @@ function dibujarCategorias() {
     const botones = ['TODAS', ...menu.map(c => c.nombre)];
     document.getElementById('categorias').innerHTML = botones.map(nombre =>
         '<button class="category-tab ' + (nombre === categoriaActiva ? 'active' : '') + '" '
-        + 'onclick="elegirCategoria(\'' + escapar(nombre) + '\')">' + escapar(nombre.toUpperCase()) + '</button>'
+                + 'onclick="elegirCategoria(\'' + escapar(nombre) + '\')">' + escapar(nombre.toUpperCase()) + '</button>'
     ).join('');
 }
 
@@ -92,7 +92,7 @@ function filtrarProductos(texto) {
 function dibujarProductos() {
     const productos = todosLosProductos().filter(p =>
         (categoriaActiva === 'TODAS' || p.categoria === categoriaActiva)
-        && p.nombre.toLowerCase().includes(textoBusqueda));
+                && p.nombre.toLowerCase().includes(textoBusqueda));
 
     const contenedor = document.getElementById('productos');
     if (productos.length === 0) {
@@ -102,15 +102,15 @@ function dibujarProductos() {
     // Los agotados se muestran pero no se pueden elegir
     contenedor.innerHTML = productos.map(p =>
         '<button class="product-card" ' + (p.disponible ? '' : 'disabled') + ' onclick="abrirPersonalizar(' + p.idProducto + ')">'
-        + '<span class="product-badge">' + (p.disponible ? escapar(p.categoria) : 'AGOTADO') + '</span>'
-        + '<strong class="product-price">' + dinero(p.precio) + '</strong>'
-        + '<span class="product-body">'
-        + '<img class="product-photo" src="' + imagenProducto(p.categoria) + '" alt="" width="65" height="65">'
-        + '<strong class="product-name">' + escapar(p.nombre.toUpperCase()) + '</strong>'
-        + '<span class="product-description">' + escapar(p.descripcion || '') + '</span>'
-        + '</span>'
-        + '<span class="product-add">' + (p.disponible ? 'TOCAR PARA AGREGAR' : 'NO DISPONIBLE') + '</span>'
-        + '</button>'
+                + '<span class="product-badge">' + (p.disponible ? escapar(p.categoria) : 'AGOTADO') + '</span>'
+                + '<strong class="product-price">' + dinero(p.precio) + '</strong>'
+                + '<span class="product-body">'
+                + '<img class="product-photo" src="' + imagenProducto(p.categoria) + '" alt="" width="65" height="65">'
+                + '<strong class="product-name">' + escapar(p.nombre.toUpperCase()) + '</strong>'
+                + '<span class="product-description">' + escapar(p.descripcion || '') + '</span>'
+                + '</span>'
+                + '<span class="product-add">' + (p.disponible ? 'TOCAR PARA AGREGAR' : 'NO DISPONIBLE') + '</span>'
+                + '</button>'
     ).join('');
 }
 
@@ -133,34 +133,34 @@ function dibujarPersonalizar() {
     if (p.extras.length > 0) {
         extrasHtml = '<div class="custom-options">' + p.extras.map(e =>
             '<button type="button" class="custom-option ' + (extrasElegidos.includes(e.idExtra) ? 'active' : '') + '" '
-            + 'onclick="alternarExtra(' + e.idExtra + ')">' + escapar(e.nombre.toUpperCase())
-            + '<span class="tag">+ ' + dinero(e.precio) + '</span></button>'
+                    + 'onclick="alternarExtra(' + e.idExtra + ')">' + escapar(e.nombre.toUpperCase())
+                    + '<span class="tag">+ ' + dinero(e.precio) + '</span></button>'
         ).join('') + '</div>';
     }
     const notaAnterior = document.getElementById('notaCocina') ? document.getElementById('notaCocina').value : '';
 
     abrirModal(
-        '<header class="modal-header">'
-        + '<span class="title-icon"><img src="' + imagenProducto(p.categoria) + '" alt="" width="30" height="30"></span>'
-        + '<div><h2>' + escapar(p.nombre.toUpperCase()) + '</h2><p><strong>' + dinero(p.precio) + ' c/u</strong></p></div>'
-        + '<button class="icon-btn" onclick="cerrarModal()" aria-label="Cerrar">X</button>'
-        + '</header>'
-        + '<div class="modal-body">'
-        + '<div class="quantity-panel"><div><strong>CANTIDAD</strong><small>Cuantas piezas se preparan</small></div>'
-        + '<div class="large-qty">'
-        + '<button onclick="cambiarCantidadElegida(-1)" ' + (cantidadElegida <= 1 ? 'disabled' : '') + '>-</button>'
-        + '<span>' + cantidadElegida + '<small>PIEZAS</small></span>'
-        + '<button onclick="cambiarCantidadElegida(1)">+</button>'
-        + '</div></div>'
-        + '<section class="modal-section"><div class="modal-section-title"><strong>INGREDIENTES EXTRA</strong>'
-        + '<small>Toca para agregar o quitar</small></div>' + extrasHtml + '</section>'
-        + '<div class="field"><label for="notaCocina">Nota para cocina (opcional)</label>'
-        + '<input id="notaCocina" maxlength="150" placeholder="Ej. sin cebolla, bien dorado" value="' + escapar(notaAnterior) + '"></div>'
-        + '</div>'
-        + '<footer class="modal-footer">'
-        + '<button class="btn secondary" onclick="cerrarModal()">CANCELAR</button>'
-        + '<button class="btn primary" onclick="confirmarProducto()">AGREGAR AL PEDIDO <strong>' + dinero(importeElegido()) + '</strong></button>'
-        + '</footer>');
+            '<header class="modal-header">'
+            + '<span class="title-icon"><img src="' + imagenProducto(p.categoria) + '" alt="" width="30" height="30"></span>'
+            + '<div><h2>' + escapar(p.nombre.toUpperCase()) + '</h2><p><strong>' + dinero(p.precio) + ' c/u</strong></p></div>'
+            + '<button class="icon-btn" onclick="cerrarModal()" aria-label="Cerrar">X</button>'
+            + '</header>'
+            + '<div class="modal-body">'
+            + '<div class="quantity-panel"><div><strong>CANTIDAD</strong><small>Cuantas piezas se preparan</small></div>'
+            + '<div class="large-qty">'
+            + '<button onclick="cambiarCantidadElegida(-1)" ' + (cantidadElegida <= 1 ? 'disabled' : '') + '>-</button>'
+            + '<span>' + cantidadElegida + '<small>PIEZAS</small></span>'
+            + '<button onclick="cambiarCantidadElegida(1)">+</button>'
+            + '</div></div>'
+            + '<section class="modal-section"><div class="modal-section-title"><strong>INGREDIENTES EXTRA</strong>'
+            + '<small>Toca para agregar o quitar</small></div>' + extrasHtml + '</section>'
+            + '<div class="field"><label for="notaCocina">Nota para cocina (opcional)</label>'
+            + '<input id="notaCocina" maxlength="150" placeholder="Ej. sin cebolla, bien dorado" value="' + escapar(notaAnterior) + '"></div>'
+            + '</div>'
+            + '<footer class="modal-footer">'
+            + '<button class="btn secondary" onclick="cerrarModal()">CANCELAR</button>'
+            + '<button class="btn primary" onclick="confirmarProducto()">AGREGAR AL PEDIDO <strong>' + dinero(importeElegido()) + '</strong></button>'
+            + '</footer>');
 }
 
 function cambiarCantidadElegida(cambio) {
@@ -180,7 +180,8 @@ function alternarExtra(idExtra) {
 function importeElegido() {
     let precio = productoElegido.precio;
     for (const extra of productoElegido.extras) {
-        if (extrasElegidos.includes(extra.idExtra)) precio += extra.precio;
+        if (extrasElegidos.includes(extra.idExtra))
+            precio += extra.precio;
     }
     return precio * cantidadElegida;
 }
@@ -198,7 +199,7 @@ function confirmarProducto() {
     mostrarAviso(cantidadElegida + ' x ' + productoElegido.nombre + ' agregado');
 }
 
-// ---------- Lista temporal de detalles (metodos del diagrama) ----------
+// ---------- Lista temporal de detalles  ----------
 
 /**
  * Agrega un detalle temporal y regresa su posicion en la lista.
@@ -257,9 +258,12 @@ function pedidoAbierto() {
 }
 
 function textoDestino() {
-    if (pedidoActual) return pedidoActual.destino;
-    if (tipo === 'LOCAL') return 'Mesa ' + idMesa;
-    if (tipo === 'LLEVAR') return 'Para llevar';
+    if (pedidoActual)
+        return pedidoActual.destino;
+    if (tipo === 'LOCAL')
+        return 'Mesa ' + idMesa;
+    if (tipo === 'LLEVAR')
+        return 'Para llevar';
     return 'A domicilio: ' + (datosEntrega ? datosEntrega.nombreCliente : '');
 }
 
@@ -289,12 +293,14 @@ function dibujarEncabezado() {
 function lineaTicket(d, enviado, i) {
     const extras = d.extras.map(e => enviado ? e : e.nombre);
     let descripcion = extras.length ? 'Extras: ' + extras.join(', ') : '';
-    if (d.notaCocina) descripcion += (descripcion ? ' - ' : '') + 'Nota: ' + d.notaCocina;
+    if (d.notaCocina)
+        descripcion += (descripcion ? ' - ' : '') + 'Nota: ' + d.notaCocina;
     const nombre = enviado ? d.producto : d.nombre;
     const importe = enviado ? d.importe : importeDetalle(d);
 
     let etiqueta = '<span class="pill amber">POR ENVIAR</span>';
-    if (enviado) etiqueta = d.listo ? '<span class="pill green">LISTO</span>' : '<span class="pill">ENVIADO</span>';
+    if (enviado)
+        etiqueta = d.listo ? '<span class="pill green">LISTO</span>' : '<span class="pill">ENVIADO</span>';
 
     let botones = '';
     if (!enviado) {
@@ -326,7 +332,7 @@ function dibujarTicket() {
     document.getElementById('total').textContent = dinero(calcularTotal());
     document.getElementById('resumenPendientes').textContent = detalles.length + ' por enviar';
 
-    const estados = { ABIERTO: 'Abierto - en cocina', POR_COBRAR: 'Por cobrar', PAGADO: 'Pagado', CANCELADO: 'Cancelado' };
+    const estados = {ABIERTO: 'Abierto - en cocina', POR_COBRAR: 'Por cobrar', PAGADO: 'Pagado', CANCELADO: 'Cancelado'};
     document.getElementById('estadoTicket').textContent = pedidoActual ? estados[pedidoActual.estado] : 'Pendiente de enviar a cocina';
 
     dibujarAcciones();
@@ -340,16 +346,23 @@ function dibujarAcciones() {
     if (pedidoActual && pedidoActual.estado === 'ABIERTO') {
         html += '<button class="btn secondary full" onclick="confirmarCerrar()" ' + (detalles.length ? 'disabled' : '') + '>CERRAR PEDIDO / SOLICITAR CUENTA</button>';
     }
+    // El cajero o el administrador pueden ir directo a cobrar
+    const puedeCobrar = rolUsuario === 'CAJERO' || rolUsuario === 'ADMINISTRADOR';
+    if (pedidoActual && pedidoActual.estado === 'POR_COBRAR' && puedeCobrar) {
+        html += '<a class="btn primary full" href="cobro.jsp?pedido=' + pedidoActual.idPedido + '">COBRAR PEDIDO</a>';
+    }
     if (pedidoActual && (pedidoActual.estado === 'ABIERTO' || pedidoActual.estado === 'POR_COBRAR')) {
         html += '<button class="btn danger full" onclick="abrirCancelar()">CANCELAR PEDIDO</button>';
     }
     if (pedidoActual && tipo === 'LOCAL' && pedidoActual.estado !== 'CANCELADO') {
         html += '<a class="btn secondary full" href="tomarPedido.jsp?mesa=' + idMesa + '&separada=1">NUEVA CUENTA SEPARADA EN ESTA MESA</a>';
     }
+
     document.getElementById('accionesTicket').innerHTML = html;
 
     let nota = 'Los productos nuevos se mandan a la cola de cocina al enviar.';
-    if (pedidoActual && pedidoActual.estado === 'POR_COBRAR') nota = 'El pedido ya pidio la cuenta. El cobro se hace en caja (CU-05).';
+    if (pedidoActual && pedidoActual.estado === 'POR_COBRAR') nota = 'El pedido ya pidio la cuenta. El cobro se hace en caja.';
+    if (pedidoActual && pedidoActual.estado === 'PAGADO') nota = 'El pedido ya fue pagado.';
     if (detalles.length && pedidoActual) nota = 'Envia los productos nuevos antes de cerrar el pedido.';
     document.getElementById('notaTicket').textContent = nota;
 }
@@ -359,11 +372,11 @@ function dibujarAcciones() {
 // Convierte la lista temporal a la forma de DetalleDTO que espera Java
 function detallesParaEnviar() {
     return detalles.map(d => ({
-        idProducto: d.idProducto,
-        cantidad: d.cantidad,
-        notaCocina: d.notaCocina,
-        idsExtras: d.extras.map(e => e.idExtra)
-    }));
+            idProducto: d.idProducto,
+            cantidad: d.cantidad,
+            notaCocina: d.notaCocina,
+            idsExtras: d.extras.map(e => e.idExtra)
+        }));
 }
 
 /**
@@ -371,13 +384,14 @@ function detallesParaEnviar() {
  * Si ya existe hace POST /api/pedidos/{id}/detalles solo con lo nuevo.
  */
 async function enviarACocina() {
-    if (detalles.length === 0) return;
+    if (detalles.length === 0)
+        return;
     let resultado;
     try {
         if (pedidoActual) {
-            resultado = await api('api/pedidos/' + pedidoActual.idPedido + '/detalles', 'POST', { detalles: detallesParaEnviar() });
+            resultado = await api('api/pedidos/' + pedidoActual.idPedido + '/detalles', 'POST', {detalles: detallesParaEnviar()});
         } else {
-            const pedidoDTO = { tipo: tipo, cuentaSeparada: cuentaSeparada, detalles: detallesParaEnviar() };
+            const pedidoDTO = {tipo: tipo, cuentaSeparada: cuentaSeparada, detalles: detallesParaEnviar()};
             if (tipo === 'LOCAL') {
                 pedidoDTO.idMesa = idMesa;
                 pedidoDTO.numeroPersonas = Number(document.getElementById('numeroPersonas').value) || null;
@@ -417,11 +431,11 @@ async function enviarACocina() {
 
 function confirmarCerrar() {
     abrirModal(
-        '<div class="modal-basic"><h2>Cerrar pedido</h2>'
-        + '<p>El pedido queda <strong>por cobrar</strong> con un total de <strong>' + dinero(calcularTotal()) + '</strong>. '
-        + 'Ya no se le pueden agregar productos.</p>'
-        + '<button class="btn primary full" onclick="cerrarPedido()">SI, SOLICITAR CUENTA</button>'
-        + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
+            '<div class="modal-basic"><h2>Cerrar pedido</h2>'
+            + '<p>El pedido queda <strong>por cobrar</strong> con un total de <strong>' + dinero(calcularTotal()) + '</strong>. '
+            + 'Ya no se le pueden agregar productos.</p>'
+            + '<button class="btn primary full" onclick="cerrarPedido()">SI, SOLICITAR CUENTA</button>'
+            + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
 }
 
 /**
@@ -441,27 +455,27 @@ async function cerrarPedido() {
     const envio = pedidoActual.costoEnvio
             ? '<div class="receipt-line"><span>Envio</span><span>' + dinero(pedidoActual.costoEnvio) + '</span></div>' : '';
     abrirModal(
-        '<div class="modal-basic"><h2>Ticket - ' + escapar(pedidoActual.destino) + '</h2>'
-        + '<p class="muted">Folio ' + escapar(pedidoActual.folio) + '</p>' + lineas + envio
-        + '<div class="receipt-line receipt-total"><strong>TOTAL A PAGAR</strong><strong>' + dinero(pedidoActual.total) + '</strong></div>'
-        + '<button class="btn primary full" onclick="window.print()">IMPRIMIR TICKET</button>'
-        + '<a class="btn secondary full" href="mesas.jsp">VOLVER A MESAS</a></div>');
+            '<div class="modal-basic"><h2>Ticket - ' + escapar(pedidoActual.destino) + '</h2>'
+            + '<p class="muted">Folio ' + escapar(pedidoActual.folio) + '</p>' + lineas + envio
+            + '<div class="receipt-line receipt-total"><strong>TOTAL A PAGAR</strong><strong>' + dinero(pedidoActual.total) + '</strong></div>'
+            + '<button class="btn primary full" onclick="window.print()">IMPRIMIR TICKET</button>'
+            + '<a class="btn secondary full" href="mesas.jsp">VOLVER A MESAS</a></div>');
 }
 
 function abrirCancelar() {
     // El mesero necesita el PIN de un cajero o administrador (RN-03)
     const pidePin = rolUsuario === 'MESERO';
     abrirModal(
-        '<div class="modal-basic"><h2>Cancelar pedido</h2>'
-        + '<p>Los productos que no esten listos se quitan de la cola de cocina.</p>'
-        + '<div class="field"><label for="motivo">Motivo</label>'
-        + '<select id="motivo"><option>El cliente se retiro</option><option>Error en la captura</option>'
-        + '<option>Producto agotado</option><option>Otro</option></select></div>'
-        + '<div class="field"><label for="motivoOtro">Detalle del motivo (opcional)</label><input id="motivoOtro" maxlength="100"></div>'
-        + (pidePin ? '<div class="field"><label for="pinAutoriza">PIN de cajero o administrador</label>'
-            + '<input id="pinAutoriza" type="password" inputmode="numeric" maxlength="6"></div>' : '')
-        + '<button class="btn primary full" onclick="confirmarCancelacion()">CONFIRMAR CANCELACION</button>'
-        + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
+            '<div class="modal-basic"><h2>Cancelar pedido</h2>'
+            + '<p>Los productos que no esten listos se quitan de la cola de cocina.</p>'
+            + '<div class="field"><label for="motivo">Motivo</label>'
+            + '<select id="motivo"><option>El cliente se retiro</option><option>Error en la captura</option>'
+            + '<option>Producto agotado</option><option>Otro</option></select></div>'
+            + '<div class="field"><label for="motivoOtro">Detalle del motivo (opcional)</label><input id="motivoOtro" maxlength="100"></div>'
+            + (pidePin ? '<div class="field"><label for="pinAutoriza">PIN de cajero o administrador</label>'
+                    + '<input id="pinAutoriza" type="password" inputmode="numeric" maxlength="6"></div>' : '')
+            + '<button class="btn primary full" onclick="confirmarCancelacion()">CONFIRMAR CANCELACION</button>'
+            + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
 }
 
 function confirmarCancelacion() {
