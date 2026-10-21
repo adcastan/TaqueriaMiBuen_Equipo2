@@ -11,6 +11,7 @@ import Entidades.PedidoDomicilio;
 import Entidades.PedidoLocal;
 import IAccesoDatos.IPedidoDAO;
 import jakarta.persistence.EntityManager;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -18,7 +19,7 @@ import java.util.List;
  *
  * @author Equipo 2
  */
-public class PedidoDAO implements IPedidoDAO{
+public class PedidoDAO implements IPedidoDAO {
 
     private final MesaDAO mesaDAO = new MesaDAO();
 
@@ -32,8 +33,8 @@ public class PedidoDAO implements IPedidoDAO{
     }
 
     /**
-     * insertarPedido(pedido) pero con cuenta separada. 
-     * Permite abrir otro pedido en una mesa que ya esta OCUPADA.
+     * insertarPedido(pedido) pero con cuenta separada. Permite abrir otro
+     * pedido en una mesa que ya esta OCUPADA.
      */
     @Override
     public int insertarPedido(Pedido pedido, boolean cuentaSeparada) {
@@ -85,8 +86,8 @@ public class PedidoDAO implements IPedidoDAO{
     }
 
     /**
-     * Inserta productos nuevos en pedidos abiertos. 
-     * Cada detalle debe traer su pedido asignado y queda al final de la cola de cocina.
+     * Inserta productos nuevos en pedidos abiertos. Cada detalle debe traer su
+     * pedido asignado y queda al final de la cola de cocina.
      */
     @Override
     public void insertarDetalles(List<DetallePedido> detalles) {
@@ -216,10 +217,11 @@ public class PedidoDAO implements IPedidoDAO{
      * Cancela el pedido y guarda el motivo y quien lo autorizo. 
      * Si es pedido local y la mesa ya no tiene otro pedido activo (cuenta separada), la mesa
      * vuelve a quedar DISPONIBLE.
+     *
      * @param idPedido idPedido
      * @param motivo motivo de cancelacion.
      * @param autorizadaPor persona que lo autorizo.
-     * @return 
+     * @return
      */
     @Override
     public Pedido cancelarPedido(int idPedido, String motivo, String autorizadaPor) {
@@ -268,6 +270,41 @@ public class PedidoDAO implements IPedidoDAO{
                     Pedido.class)
                     .setParameter("abierto", EstadoPedido.ABIERTO)
                     .setParameter("porCobrar", EstadoPedido.POR_COBRAR)
+                    .getResultList();
+            for (Pedido pedido : pedidos) {
+                cargarDetalles(pedido);
+            }
+            return pedidos;
+        } finally {
+            em.close();
+        }
+    }
+
+    @Override
+    public List<Pedido> listarPorCobrar() {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            List<Pedido> pedidos = em.createQuery(
+                    "SELECT p FROM Pedido p WHERE p.estado = :porCobrar ORDER BY p.fechaApertura", Pedido.class)
+                    .setParameter("porCobrar", EstadoPedido.POR_COBRAR)
+                    .getResultList();
+            for (Pedido pedido : pedidos) {
+                cargarDetalles(pedido);
+            }
+            return pedidos;
+        } finally {
+            em.close();
+        }
+    }
+
+    @Override
+    public List<Pedido> listarPorPeriodo(LocalDateTime inicio, LocalDateTime fin) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            List<Pedido> pedidos = em.createQuery(
+                    "SELECT p FROM Pedido p WHERE p.fechaApertura BETWEEN :inicio AND :fin ORDER BY p.fechaApertura", Pedido.class)
+                    .setParameter("inicio", inicio)
+                    .setParameter("fin", fin)
                     .getResultList();
             for (Pedido pedido : pedidos) {
                 cargarDetalles(pedido);

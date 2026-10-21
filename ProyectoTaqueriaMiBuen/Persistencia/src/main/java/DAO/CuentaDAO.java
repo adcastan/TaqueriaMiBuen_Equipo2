@@ -2,6 +2,7 @@ package DAO;
 
 import Conexion.JPAUtil;
 import Entidades.Cuenta;
+import Enums.Rol;
 import IAccesoDatos.ICuentaDAO;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -11,10 +12,10 @@ import java.util.List;
  *
  * @author Equipo 2
  */
-public class CuentaDAO implements ICuentaDAO{
+public class CuentaDAO implements ICuentaDAO {
 
     /**
-     * Guarda la cuenta. Si su usuario es nuevo tambien se guarda.
+     * Registra la cuenta. 
      */
     @Override
     public void registrar(Cuenta cuenta) {
@@ -48,8 +49,9 @@ public class CuentaDAO implements ICuentaDAO{
     }
 
     /**
-     * Cuentas de usuarios activos. Como el PIN esta guardado con hash,
-     * para iniciar sesion se recorren estas cuentas y se usa validarPin().
+     * Cuentas de usuarios activos. 
+     * Como el PIN esta guardado con hash, para iniciar sesion se recorren estas cuentas y 
+     * se usa validarPin().
      */
     @Override
     public List<Cuenta> buscarActivas() {
@@ -57,6 +59,38 @@ public class CuentaDAO implements ICuentaDAO{
         try {
             return em.createQuery("SELECT c FROM Cuenta c WHERE c.usuario.activo = true", Cuenta.class)
                     .getResultList();
+        } finally {
+            em.close();
+        }
+    }
+
+    @Override
+    public List<Cuenta> listar() {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            return em.createQuery("SELECT c FROM Cuenta c ORDER BY c.usuario.nombre", Cuenta.class)
+                    .getResultList();
+        } finally {
+            em.close();
+        }
+    }
+
+    @Override
+    public void actualizarRol(int idUsuario, Rol rol) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            em.getTransaction().begin();
+            Cuenta cuenta = em.createQuery(
+                    "SELECT c FROM Cuenta c WHERE c.usuario.idUsuario = :id", Cuenta.class)
+                    .setParameter("id", idUsuario)
+                    .getSingleResult();
+            cuenta.setRol(rol);
+            em.getTransaction().commit();
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new RuntimeException("No se pudo cambiar el rol: " + e.getMessage(), e);
         } finally {
             em.close();
         }

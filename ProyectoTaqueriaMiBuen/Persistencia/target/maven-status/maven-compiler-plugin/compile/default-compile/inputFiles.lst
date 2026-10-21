@@ -1,8 +1,30 @@
-C:\Users\joelr\Downloads\ProyectoTaqueriaMiBuen_v2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\Conexion\JPAUtil.java
-C:\Users\joelr\Downloads\ProyectoTaqueriaMiBuen_v2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\CategoriaDAO.java
-C:\Users\joelr\Downloads\ProyectoTaqueriaMiBuen_v2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\CuentaDAO.java
-C:\Users\joelr\Downloads\ProyectoTaqueriaMiBuen_v2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\KdsDAO.java
-C:\Users\joelr\Downloads\ProyectoTaqueriaMiBuen_v2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\MesaDAO.java
-C:\Users\joelr\Downloads\ProyectoTaqueriaMiBuen_v2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\PedidoDAO.java
-C:\Users\joelr\Downloads\ProyectoTaqueriaMiBuen_v2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\ProductoDAO.java
-C:\Users\joelr\Downloads\ProyectoTaqueriaMiBuen_v2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\Pruebas\Persistencia.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\Conexion\JPAUtil.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\CajaDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\CategoriaDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\CompraDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\CuentaDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\IngredienteDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\IngredienteExtraDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\KdsDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\MesaDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\PagoDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\PedidoDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\ProductoDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\ProveedorDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\ReporteVentaDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\DAO\UsuarioDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\ICajaDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\ICategoriaDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\ICompraDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\ICuentaDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\IIngredienteDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\IIngredienteExtraDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\IKdsDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\IMesaDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\IPagoDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\IPedidoDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\IProductoDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\IProveedorDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\IReporteVentaDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\IAccesoDatos\IUsuarioDAO.java
+C:\Users\joelr\Desktop\Proyecto Taqueria Mi Buen\TaqueriaMiBuen_Equipo2\ProyectoTaqueriaMiBuen\Persistencia\src\main\java\Pruebas\Persistencia.java

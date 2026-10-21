@@ -12,7 +12,7 @@ import java.util.List;
  *
  * @author Equipo 2
  */
-public class ProductoDAO implements IProductoDAO{
+public class ProductoDAO implements IProductoDAO {
 
     @Override
     public void registrar(Producto producto) {
@@ -104,8 +104,9 @@ public class ProductoDAO implements IProductoDAO{
     }
 
     /**
-     * Busca un producto por su id y carga sus extras. 
-     * Lo usa el servicio de pedidos para armar cada detalle.
+     * Busca un producto por su id y carga sus extras. Lo usa el servicio de
+     * pedidos para armar cada detalle.
+     *
      * @param idProducto
      * @return
      */
@@ -124,10 +125,8 @@ public class ProductoDAO implements IProductoDAO{
     }
 
     /**
-     * Todo el menu (disponibles y agotados) con sus extras, ordenado por
-     * categoria. 
+     * Todo el menu con sus extras, ordenado por categoria. 
      * Los agotados se muestran deshabilitados en la pantalla.
-     *
      * @return
      */
     @Override
@@ -146,4 +145,38 @@ public class ProductoDAO implements IProductoDAO{
         }
     }
 
+    @Override
+    public void actualizar(Producto producto) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            em.getTransaction().begin();
+            em.merge(producto);
+            em.getTransaction().commit();
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new RuntimeException("No se pudo actualizar el producto: " + e.getMessage(), e);
+        } finally {
+            em.close();
+        }
+    }
+
+    @Override
+    public void cambiarDisponible(int idProducto, boolean disponible) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            em.getTransaction().begin();
+            Producto producto = em.find(Producto.class, idProducto);
+            producto.setDisponible(disponible);
+            em.getTransaction().commit();
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new RuntimeException("No se pudo cambiar la disponibilidad: " + e.getMessage(), e);
+        } finally {
+            em.close();
+        }
+    }
 }

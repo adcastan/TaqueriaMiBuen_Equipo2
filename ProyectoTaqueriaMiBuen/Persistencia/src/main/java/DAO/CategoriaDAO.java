@@ -11,7 +11,7 @@ import java.util.List;
  *
  * @author Equipo 2
  */
-public class CategoriaDAO implements ICategoriaDAO{
+public class CategoriaDAO implements ICategoriaDAO {
 
     @Override
     public void registrar(Categoria categoria) {
@@ -50,6 +50,33 @@ public class CategoriaDAO implements ICategoriaDAO{
         try {
             return em.createQuery("SELECT c FROM Categoria c ORDER BY c.orden", Categoria.class)
                     .getResultList();
+        } finally {
+            em.close();
+        }
+    }
+
+    @Override
+    public Categoria buscarPorId(int idCategoria) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            return em.find(Categoria.class, idCategoria);
+        } finally {
+            em.close();
+        }
+    }
+
+    @Override
+    public void actualizar(Categoria categoria) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            em.getTransaction().begin();
+            em.merge(categoria);
+            em.getTransaction().commit();
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new RuntimeException("No se pudo actualizar la categoria: " + e.getMessage(), e);
         } finally {
             em.close();
         }

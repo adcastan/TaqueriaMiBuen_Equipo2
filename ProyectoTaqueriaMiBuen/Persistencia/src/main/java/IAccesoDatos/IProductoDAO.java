@@ -35,4 +35,10 @@ public interface IProductoDAO {
 
     // Todo el menu con sus extras.
     List<Producto> listarConExtras();
+    
+    // Guarda los cambios de un producto (nombre, precio, categoria y extras).
+    public void actualizar(Producto producto);
+
+    // Marca el producto como disponible o agotado.
+    public void cambiarDisponible(int idProducto, boolean disponible);
 }

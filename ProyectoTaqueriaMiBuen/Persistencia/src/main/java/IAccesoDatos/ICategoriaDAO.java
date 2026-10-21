@@ -24,4 +24,10 @@ public interface ICategoriaDAO {
 
     // Todas las categorias en el orden del menu.
     public List<Categoria> listar();
+    
+    // Categoria por su id o null.
+    public Categoria buscarPorId(int idCategoria);
+
+    // Guarda los cambios de nombre u orden.
+    public void actualizar(Categoria categoria);
 }

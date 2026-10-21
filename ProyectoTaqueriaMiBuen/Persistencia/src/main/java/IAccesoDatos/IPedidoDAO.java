@@ -7,6 +7,7 @@ package IAccesoDatos;
 import Entidades.DetallePedido;
 import Entidades.Pedido;
 import Enums.EstadoPedido;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -46,4 +47,10 @@ public interface IPedidoDAO {
 
     // Pedidos abiertos o por cobrar.
     List<Pedido> listarActivos();
+
+    // Pedidos que ya pidieron la cuenta y esperan el cobro.
+    List<Pedido> listarPorCobrar();
+
+    // Pedidos abiertos entre dos fechas, con sus detalles (para los reportes).
+    List<Pedido> listarPorPeriodo(LocalDateTime inicio, LocalDateTime fin);
 }

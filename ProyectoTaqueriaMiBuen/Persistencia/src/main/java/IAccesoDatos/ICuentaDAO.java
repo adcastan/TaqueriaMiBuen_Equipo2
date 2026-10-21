@@ -5,6 +5,7 @@
 package IAccesoDatos;
 
 import Entidades.Cuenta;
+import Enums.Rol;
 import java.util.List;
 
 /**
@@ -24,4 +25,10 @@ public interface ICuentaDAO {
 
     // Cuentas de usuarios activos, se usan para validar el PIN.
     public List<Cuenta> buscarActivas();
+    
+    // Todas las cuentas con su usuario, activos y dados de baja.
+    public List<Cuenta> listar();
+
+    // Cambia el rol de la cuenta de un usuario.
+    public void actualizarRol(int idUsuario, Rol rol);
 }
