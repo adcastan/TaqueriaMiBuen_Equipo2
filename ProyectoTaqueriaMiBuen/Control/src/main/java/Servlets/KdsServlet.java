@@ -48,7 +48,7 @@ public class KdsServlet extends HttpServlet {
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        String ruta = req.getPathInfo(); // "/detalles/12/listo"
+        String ruta = req.getPathInfo(); 
         String[] partes = ruta == null ? new String[0] : ruta.split("/");
         if (partes.length != 4 || !partes[1].equals("detalles") || !partes[3].equals("listo")) {
             Json.error(resp, 404, "Ruta no encontrada");
@@ -56,7 +56,7 @@ public class KdsServlet extends HttpServlet {
         }
         try {
             kdsService.marcarListo(Integer.parseInt(partes[2]));
-            resp.setStatus(204); // 204 No Content, como en la secuencia KDS
+            resp.setStatus(204);
         } catch (NumberFormatException e) {
             Json.error(resp, 400, "El id del detalle no es un numero");
         } catch (RuntimeException e) {

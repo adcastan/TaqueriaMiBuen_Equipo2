@@ -22,7 +22,7 @@ import java.util.List;
  * 1. Sin sesion solo se puede ver el login, los estilos y las imagenes.
  * 2. El monitor de cocina es para COCINERO y ADMINISTRADOR.
  * 3. Mesas y pedidos son para MESERO, CAJERO y ADMINISTRADOR.
- *
+ * 4. El cobro y la caja son para CAJERO y ADMINISTRADOR.
  * @author Equipo 2
  */
 @WebFilter("/*")
@@ -32,7 +32,8 @@ public class FiltroSeguridad implements Filter {
     private static final List<String> LIBRES = List.of("/login", "/login.jsp", "/estilos.css");
     private static final List<String> ROLES_COCINA = List.of("COCINERO", "ADMINISTRADOR");
     private static final List<String> ROLES_PEDIDOS = List.of("MESERO", "CAJERO", "ADMINISTRADOR");
-
+    private static final List<String> ROLES_CAJA = List.of("CAJERO", "ADMINISTRADOR");
+    
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)throws IOException, ServletException {
         HttpServletRequest req = (HttpServletRequest) request;
@@ -53,6 +54,7 @@ public class FiltroSeguridad implements Filter {
         }
 
         boolean esCocina = ruta.startsWith("/api/kds") || ruta.equals("/kds.jsp");
+        boolean esCaja = ruta.startsWith("/api/cobros") || ruta.equals("/cobro.jsp");
         List<String> permitidos = esCocina ? ROLES_COCINA : ROLES_PEDIDOS;
         if (!ruta.equals("/logout") && !permitidos.contains(rol)) {
             negar(req, resp, 403, "Tu rol no tiene permiso para esta pantalla");

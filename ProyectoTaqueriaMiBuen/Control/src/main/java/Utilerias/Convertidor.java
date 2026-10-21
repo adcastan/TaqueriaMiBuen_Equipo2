@@ -4,6 +4,7 @@
  */
 package Utilerias;
 
+import Entidades.Caja;
 import Entidades.Categoria;
 import Entidades.DatosEntrega;
 import Entidades.DetalleExtra;
@@ -32,6 +33,20 @@ public class Convertidor {
 
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
 
+     /**
+     * Caja abierta para la pantalla de cobro, con lo cobrado en efectivo y con tarjeta.
+     */
+    public static Map<String, Object> caja(Caja caja, double cobradoEfectivo, double cobradoTarjeta) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("idCaja", caja.getIdCaja());
+        m.put("abiertaPor", caja.getUsuario().getNombre());
+        m.put("hora", caja.getFechaApertura() == null ? "" : caja.getFechaApertura().format(HORA));
+        m.put("montoInicial", caja.getMontoInicial());
+        m.put("cobradoEfectivo", cobradoEfectivo);
+        m.put("cobradoTarjeta", cobradoTarjeta);
+        return m;
+    }
+    
     public static Map<String, Object> mesa(Mesa mesa, Pedido pedidoActivo) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("idMesa", mesa.getIdMesa());
