@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Utilerias;
 
 import Entidades.Caja;
@@ -47,6 +43,7 @@ public class Convertidor {
         return m;
     }
     
+    // Mesa para el mapa: numero, capacidad, color y, si tiene, su pedido y la cuenta
     public static Map<String, Object> mesa(Mesa mesa, Pedido pedidoActivo) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("idMesa", mesa.getIdMesa());
@@ -62,6 +59,7 @@ public class Convertidor {
         return m;
     }
 
+    // Categoria con todos sus productos
     public static Map<String, Object> categoria(Categoria categoria, List<Producto> productos) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("idCategoria", categoria.getIdCategoria());
@@ -74,6 +72,7 @@ public class Convertidor {
         return m;
     }
 
+    // Producto con precio, si esta disponible y sus extras
     public static Map<String, Object> producto(Producto producto) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("idProducto", producto.getIdProducto());
@@ -93,6 +92,7 @@ public class Convertidor {
         return m;
     }
 
+    // Pedido completo para la pantalla: datos segun el tipo, renglones, totales y quien lo movio
     public static Map<String, Object> pedido(Pedido pedido) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("idPedido", pedido.getIdPedido());
@@ -128,9 +128,16 @@ public class Convertidor {
         m.put("detalles", detalles);
         m.put("subtotal", pedido.calcularSubtotal());
         m.put("total", pedido.calcularTotal());
+        m.put("pendientesCocina", pedido.productosPendientesEnCocina());
+        m.put("rondas", pedido.siguienteRonda() - 1);
+        // Trazabilidad (requisito 3.6): quien lo abrio y quien le movio al ultimo
+        m.put("abiertoPor", pedido.getUsuario() == null ? null : pedido.getUsuario().getNombre());
+        m.put("modificadoPor", pedido.getUsuarioModifico() == null ? null : pedido.getUsuarioModifico().getNombre());
+        m.put("horaModificacion", pedido.getFechaModificacion() == null ? "" : pedido.getFechaModificacion().format(HORA));
         return m;
     }
 
+    // Un renglon del pedido con su estado en cocina, ronda e importe
     public static Map<String, Object> detalle(DetallePedido detalle) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("idDetalle", detalle.getIdDetalle());
@@ -140,6 +147,13 @@ public class Convertidor {
         m.put("precioUnitario", detalle.getPrecioUnitario());
         m.put("notaCocina", detalle.getNotaCocina());
         m.put("listo", detalle.isListo());
+        m.put("estado", detalle.getEstadoPreparacion().name());
+        m.put("ronda", detalle.getRonda());
+        m.put("hora", detalle.getFechaEnvio() == null ? "" : detalle.getFechaEnvio().format(HORA));
+        m.put("agregadoPor", detalle.getAgregadoPor() == null ? null : detalle.getAgregadoPor().getNombre());
+        // Si se cancelo, que la pantalla pueda decir por que y quien lo autorizo
+        m.put("motivoCancelacion", detalle.getMotivoCancelacion());
+        m.put("canceladoPor", detalle.getCanceladoPor());
         List<String> extras = new ArrayList<>();
         for (DetalleExtra extra : detalle.getExtras()) {
             extras.add(extra.getExtra().getNombre());
