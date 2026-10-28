@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Utilerias;
 
 import com.google.gson.Gson;
@@ -27,6 +23,10 @@ public class Json {
      */
     public static <T> T leer(HttpServletRequest req, Class<T> clase) throws IOException {
         try {
+            // Sin esto Tomcat lee el cuerpo como ISO-8859-1 y "Jose Nunez" con acentos llega con letras raras
+            if (req.getCharacterEncoding() == null) {
+                req.setCharacterEncoding("UTF-8");
+            }
             T objeto = GSON.fromJson(req.getReader(), clase);
             if (objeto == null) {
                 throw new IllegalArgumentException("La peticion no trae datos");
@@ -53,6 +53,18 @@ public class Json {
     public static void error(HttpServletResponse resp, int estado, String mensaje) throws IOException {
         Map<String, Object> cuerpo = new HashMap<>();
         cuerpo.put("error", mensaje);
+        enviar(resp, estado, cuerpo);
+    }
+
+    /**
+     * Igual que error(), pero con un dato extra para la pantalla. Por ejemplo,
+     * los ids de los productos que se agotaron para marcarlos en rojo.
+     */
+    public static void error(HttpServletResponse resp, int estado, String mensaje, String campo, Object valor)
+            throws IOException {
+        Map<String, Object> cuerpo = new HashMap<>();
+        cuerpo.put("error", mensaje);
+        cuerpo.put(campo, valor);
         enviar(resp, estado, cuerpo);
     }
 }
