@@ -28,6 +28,7 @@ async function cargarCobro() {
 
 // ---------- Caja ----------
 
+// Pinta el cuadro de la caja: quien la abrio, con cuanto y lo cobrado hasta ahorita
 function dibujarCaja() {
     const resumen = document.getElementById('resumenCaja');
     const estado = document.getElementById('estadoCaja');
@@ -70,6 +71,7 @@ async function abrirCaja() {
 
 // ---------- Pedidos por cobrar ----------
 
+// Pinta la lista de pedidos que esperan su cobro
 function dibujarPendientes() {
     document.getElementById('totalPendientes').textContent = pendientes.length + ' por cobrar';
     const contenedor = document.getElementById('pendientes');
@@ -82,7 +84,7 @@ function dibujarPendientes() {
         '<article class="delivery-order">'
         + '<div class="delivery-order-top"><strong>' + escapar(p.destino) + '</strong>'
         + '<span class="folio-chip">' + escapar(p.folio) + '</span></div>'
-        + '<p class="muted">Abierto a las ' + escapar(p.hora) + ' - ' + p.detalles.length + ' productos</p>'
+        + '<p class="muted">Abierto a las ' + escapar(p.hora) + ' - ' + cobrables(p).length + ' productos</p>'
         + '<h3>' + dinero(p.total) + '</h3>'
         + '<button class="btn primary full" onclick="abrirCobro(' + p.idPedido + ')" ' + (caja ? '' : 'disabled') + '>COBRAR</button>'
         + '</article>'
@@ -91,6 +93,7 @@ function dibujarPendientes() {
 
 // ---------- Ventana de cobro ----------
 
+// Abre la ventana de cobro del pedido que eligio el cajero
 function abrirCobro(idPedido) {
     if (!caja) {
         mostrarAviso('Abre la caja antes de cobrar', true);
@@ -105,9 +108,16 @@ function abrirCobro(idPedido) {
     dibujarVentanaCobro();
 }
 
+// Renglones que si se cobran: todos menos los cancelados (los cancelados no suman al total)
+function cobrables(p) {
+    return p.detalles.filter(d => d.estado !== 'CANCELADO');
+}
+
+// Pinta la ventana de cobro con el total, el metodo y el cambio
 function dibujarVentanaCobro() {
     const p = pedidoCobro;
-    const lineas = p.detalles.map(d =>
+    // Lo cancelado no se cobra, asi que tampoco sale en el ticket
+    const lineas = cobrables(p).map(d =>
         '<div class="receipt-line"><span>' + d.cantidad + 'x ' + escapar(d.producto) + '</span><span>' + dinero(d.importe) + '</span></div>'
     ).join('');
     const envio = p.costoEnvio
@@ -134,6 +144,7 @@ function dibujarVentanaCobro() {
     }
 }
 
+// Cambia entre efectivo y tarjeta y vuelve a pintar la ventana
 function elegirMetodo(metodo) {
     metodoElegido = metodo;
     dibujarVentanaCobro();
@@ -168,9 +179,11 @@ async function cobrarPedido() {
     await cargarCobro();
 }
 
+// Despues de cobrar muestra el ticket con lo pagado y el cambio
 function mostrarTicketPago(resultado) {
     const p = pedidoCobro;
-    const lineas = p.detalles.map(d =>
+    // Lo cancelado no se cobra, asi que tampoco sale en el ticket
+    const lineas = cobrables(p).map(d =>
         '<div class="receipt-line"><span>' + d.cantidad + 'x ' + escapar(d.producto) + '</span><span>' + dinero(d.importe) + '</span></div>'
     ).join('');
     const envio = p.costoEnvio
@@ -190,6 +203,7 @@ function mostrarTicketPago(resultado) {
 
 // ---------- Inicio ----------
 
+// Arranque de la pantalla: carga la caja y los pendientes
 async function iniciar() {
     await cargarCobro();
     // cobro.jsp?pedido=8 abre directo la ventana de ese pedido
