@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package DTO;
 
 import java.util.ArrayList;
@@ -31,7 +27,18 @@ public class PedidoDTO {
     private String referencias;
     private List<DetalleDTO> detalles = new ArrayList<>();
 
+    // Clave unica que inventa la pantalla para este envio; si se reintenta se manda la misma
+    private String claveEnvio;
+
     public PedidoDTO() {
+    }
+
+    public String getClaveEnvio() {
+        return claveEnvio;
+    }
+
+    public void setClaveEnvio(String claveEnvio) {
+        this.claveEnvio = claveEnvio;
     }
 
     public String getTipo() {
