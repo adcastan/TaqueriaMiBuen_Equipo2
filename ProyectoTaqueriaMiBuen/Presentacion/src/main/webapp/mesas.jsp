@@ -2,7 +2,7 @@
 <%--
 Mapa de mesas.
 Las mesas las carga mesas.js desde GET /api/mesas.
-Verde = libre, rojo = ocupada. 
+Verde = libre, rojo = ocupada, ambar = ya pidieron la cuenta y falta cobrar.
 Abajo se ven los pedidos para llevar y a domicilio activos.
 --%>
 <% request.setAttribute("seccion", "mesas");%>
@@ -37,6 +37,7 @@ Abajo se ven los pedidos para llevar y a domicilio activos.
             <div class="table-legend">
                 <div class="legend">VERDE = LIBRE<small>TOCA PARA ABRIR PEDIDO</small></div>
                 <div class="legend red">ROJO = OCUPADA<small>TOCA PARA VER LA CUENTA</small></div>
+                <div class="legend amber">AMBAR = POR COBRAR<small>YA PIDIERON LA CUENTA</small></div>
             </div>
 
             <section class="table-grid" id="mapaMesas" aria-label="Mapa de mesas">
