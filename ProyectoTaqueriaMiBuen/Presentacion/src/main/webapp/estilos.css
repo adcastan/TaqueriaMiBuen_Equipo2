@@ -2805,3 +2805,76 @@ small.form-error:empty{
         display:none!important
     }
 }
+
+/* ------------------------------------------------------------------
+   Administrar pedido: estados nuevos. Solo usa los colores que ya
+   estaban en :root, para que todo se vea igual que el resto.
+   ------------------------------------------------------------------ */
+
+/* Mapa de mesas: ambar = ya pidieron la cuenta, falta cobrar */
+.table-legend{
+    grid-template-columns:repeat(3,1fr)
+}
+.legend.amber{
+    background:var(--amber)
+}
+.table-tile.pending{
+    background:var(--amber);
+    box-shadow:0 4px 0 #8a4f06
+}
+.table-tile.pending:hover{
+    border-color:var(--amber-light)
+}
+
+/* Ticket agrupado por rondas */
+.ticket-round{
+    margin-top:12px;
+    padding:6px 0;
+    color:var(--muted);
+    font-size:10px;
+    font-weight:900;
+    letter-spacing:.3px;
+    border-bottom:1px solid var(--line)
+}
+.ticket-line.cancelled .ticket-line-top strong{
+    color:var(--muted);
+    text-decoration:line-through
+}
+
+/* Campo obligatorio vacio o mal capturado: borde y mensaje en rojo */
+.field.invalid input,.field.invalid select,.guest-count.invalid input{
+    border-color:var(--red);
+    background:var(--red-light)
+}
+.field .field-error,.guest-count .field-error,.field small.form-error{
+    color:var(--red);
+    font-size:10px;
+    font-weight:800
+}
+.field.invalid input:focus,.field.invalid select:focus,.guest-count.invalid input:focus{
+    outline-color:var(--red)
+}
+.guest-count .field-error{
+    flex-basis:100%;
+    text-align:right
+}
+.guest-count{
+    flex-wrap:wrap
+}
+
+/* Monitor de cocina: el producto que ya se esta haciendo se distingue */
+.delivery-order.kitchen.preparing{
+    border-color:var(--amber);
+    background:var(--amber-light)
+}
+.kitchen-actions{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px
+}
+
+@media(max-width:760px){
+    .table-legend{
+        grid-template-columns:1fr
+    }
+}
