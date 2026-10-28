@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package DAO;
 
 import Conexion.JPAUtil;
@@ -17,6 +13,7 @@ import java.util.List;
  */
 public class IngredienteExtraDAO implements IIngredienteExtraDAO {
 
+    // Guarda un ingrediente extra con su precio (queso extra, aguacate...)
     @Override
     public void registrar(IngredienteExtra extra) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -34,6 +31,7 @@ public class IngredienteExtraDAO implements IIngredienteExtraDAO {
         }
     }
 
+    // Guarda los cambios de nombre o precio de un extra
     @Override
     public void actualizar(IngredienteExtra extra) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -51,6 +49,7 @@ public class IngredienteExtraDAO implements IIngredienteExtraDAO {
         }
     }
 
+    // Busca un extra por su id; null si no existe
     @Override
     public IngredienteExtra buscarPorId(int idExtra) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -61,6 +60,7 @@ public class IngredienteExtraDAO implements IIngredienteExtraDAO {
         }
     }
 
+    // Todos los extras que se pueden ofrecer
     @Override
     public List<IngredienteExtra> listar() {
         EntityManager em = JPAUtil.obtenerEntityManager();

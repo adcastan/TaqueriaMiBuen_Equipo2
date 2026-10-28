@@ -34,6 +34,7 @@ public class CuentaDAO implements ICuentaDAO {
         }
     }
 
+    // Cuenta (PIN y rol) de un empleado; null si no tiene
     @Override
     public Cuenta buscarPorUsuario(int idUsuario) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -64,6 +65,7 @@ public class CuentaDAO implements ICuentaDAO {
         }
     }
 
+    // Todas las cuentas, activas o no, para la pantalla de empleados
     @Override
     public List<Cuenta> listar() {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -75,6 +77,7 @@ public class CuentaDAO implements ICuentaDAO {
         }
     }
 
+    // Cambia el rol de un empleado (por ejemplo de mesero a cajero)
     @Override
     public void actualizarRol(int idUsuario, Rol rol) {
         EntityManager em = JPAUtil.obtenerEntityManager();

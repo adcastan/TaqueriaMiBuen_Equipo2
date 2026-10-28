@@ -57,6 +57,7 @@ public class Pago implements Serializable {
         this.monto = monto;
     }
 
+    // Si nadie puso la fecha, se toma la de este momento al guardar
     @PrePersist
     protected void antesDeGuardar() {
         if (fecha == null) {

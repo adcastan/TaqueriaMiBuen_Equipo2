@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package DAO;
 
 import Conexion.JPAUtil;
@@ -16,6 +12,7 @@ import java.util.List;
  */
 public class UsuarioDAO implements IUsuarioDAO {
 
+    // Busca un empleado por su id; null si no existe
     @Override
     public Usuario buscarPorId(int idUsuario) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -26,6 +23,7 @@ public class UsuarioDAO implements IUsuarioDAO {
         }
     }
 
+    // Todos los empleados, activos y dados de baja
     @Override
     public List<Usuario> listar() {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -37,6 +35,7 @@ public class UsuarioDAO implements IUsuarioDAO {
         }
     }
 
+    // Guarda los cambios de nombre o telefono de un empleado
     @Override
     public void actualizar(Usuario usuario) {
         EntityManager em = JPAUtil.obtenerEntityManager();

@@ -1,6 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- */
 package com.mycompany.negocio;
 
 import Conexion.JPAUtil;
@@ -44,6 +41,7 @@ import java.util.Map;
  */
 public class Negocio {
 
+    // Recorrido de prueba de la capa de negocio: se corre a mano desde NetBeans con la BD prendida
     public static void main(String[] args) {
         AutenticacionService autenticacion = new AutenticacionService();
         MenuService menuService = new MenuService();
@@ -212,6 +210,7 @@ public class Negocio {
         }
     }
 
+    // Imprime un pedido con sus renglones para revisarlo en la consola
     private static void mostrarPedido(Pedido pedido) {
         System.out.println(pedido);
         for (DetallePedido d : pedido.getDetalles()) {

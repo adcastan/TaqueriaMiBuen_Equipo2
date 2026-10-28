@@ -13,6 +13,7 @@ import java.util.List;
  */
 public class CategoriaDAO implements ICategoriaDAO {
 
+    // Guarda una categoria nueva del menu (Tacos, Bebidas...)
     @Override
     public void registrar(Categoria categoria) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -30,6 +31,7 @@ public class CategoriaDAO implements ICategoriaDAO {
         }
     }
 
+    // Busca una categoria por su nombre exacto; sirve para no repetirlas
     @Override
     public Categoria buscarPorNombre(String nombre) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -44,6 +46,7 @@ public class CategoriaDAO implements ICategoriaDAO {
         }
     }
 
+    // Todas las categorias en el orden en que se muestran en el menu
     @Override
     public List<Categoria> listar() {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -55,6 +58,7 @@ public class CategoriaDAO implements ICategoriaDAO {
         }
     }
 
+    // Busca una categoria por su id; null si no existe
     @Override
     public Categoria buscarPorId(int idCategoria) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -65,6 +69,7 @@ public class CategoriaDAO implements ICategoriaDAO {
         }
     }
 
+    // Guarda los cambios de nombre u orden de una categoria
     @Override
     public void actualizar(Categoria categoria) {
         EntityManager em = JPAUtil.obtenerEntityManager();

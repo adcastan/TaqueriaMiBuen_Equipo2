@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- */
-
 package com.mycompany.control;
 
 /**
@@ -10,6 +6,7 @@ package com.mycompany.control;
  */
 public class Control {
 
+    // Clase que dejo NetBeans al crear el modulo; no hace nada, se queda para no romper el proyecto
     public static void main(String[] args) {
         System.out.println("Hello World!");
     }

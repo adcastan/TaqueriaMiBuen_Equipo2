@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package DAO;
 
 import Conexion.JPAUtil;
@@ -16,6 +12,7 @@ import java.util.List;
  */
 public class ProveedorDAO implements IProveedorDAO {
 
+    // Guarda un proveedor nuevo
     @Override
     public void registrar(Proveedor proveedor) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -33,6 +30,7 @@ public class ProveedorDAO implements IProveedorDAO {
         }
     }
 
+    // Guarda los cambios de datos de un proveedor
     @Override
     public void actualizar(Proveedor proveedor) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -73,6 +71,7 @@ public class ProveedorDAO implements IProveedorDAO {
         }
     }
 
+    // Busca un proveedor por su id; null si no existe
     @Override
     public Proveedor buscarPorId(int idProveedor) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -83,6 +82,7 @@ public class ProveedorDAO implements IProveedorDAO {
         }
     }
 
+    // Busca un proveedor por su nombre; sirve para no repetirlo
     @Override
     public Proveedor buscarPorNombre(String nombre) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -97,6 +97,7 @@ public class ProveedorDAO implements IProveedorDAO {
         }
     }
 
+    // Todos los proveedores ordenados por nombre
     @Override
     public List<Proveedor> listar() {
         EntityManager em = JPAUtil.obtenerEntityManager();

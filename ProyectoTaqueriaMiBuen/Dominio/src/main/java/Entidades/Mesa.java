@@ -43,6 +43,7 @@ public class Mesa implements Serializable {
         this.capacidad = capacidad;
     }
 
+    // true si la mesa esta en verde
     public boolean estaDisponible() {
         return estado == EstadoMesa.DISPONIBLE;
     }

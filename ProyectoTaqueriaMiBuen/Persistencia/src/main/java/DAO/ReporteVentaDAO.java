@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package DAO;
 
 import Conexion.JPAUtil;
@@ -16,6 +12,7 @@ import java.util.List;
  */
 public class ReporteVentaDAO implements IReporteVentaDAO {
 
+    // Guarda un reporte de ventas ya calculado
     @Override
     public void registrar(ReporteVenta reporte) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -33,6 +30,7 @@ public class ReporteVentaDAO implements IReporteVentaDAO {
         }
     }
 
+    // Busca un reporte con sus pedidos; null si no existe
     @Override
     public ReporteVenta buscarPorId(int idReporte) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -47,6 +45,7 @@ public class ReporteVentaDAO implements IReporteVentaDAO {
         }
     }
 
+    // Todos los reportes de ventas que se han generado
     @Override
     public List<ReporteVenta> listar() {
         EntityManager em = JPAUtil.obtenerEntityManager();

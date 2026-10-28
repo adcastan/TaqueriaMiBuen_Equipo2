@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Servicios;
 
 import DAO.CajaDAO;
@@ -23,6 +19,7 @@ public class CajaService implements ICajaService {
     private final ICajaDAO cajaDAO = new CajaDAO();
     private final IPagoDAO pagoDAO = new PagoDAO();
 
+    // Abre la caja del turno; no se puede abrir otra si ya hay una abierta
     @Override
     public Caja abrirCaja(Usuario usuario, double montoInicial) {
         if (usuario == null) {
@@ -40,11 +37,13 @@ public class CajaService implements ICajaService {
         return caja;
     }
 
+    // La caja abierta ahorita, o null si nadie ha abierto turno
     @Override
     public Caja obtenerCajaAbierta() {
         return cajaDAO.buscarAbierta();
     }
 
+    // Cuanto lleva cobrado la caja con un metodo de pago
     @Override
     public double obtenerTotalCobrado(int idCaja, String metodo) {
         return pagoDAO.totalPorMetodo(idCaja, metodo);
@@ -67,6 +66,7 @@ public class CajaService implements ICajaService {
         return cajaDAO.cerrar(caja.getIdCaja(), ventasEfectivo, efectivoContado);
     }
 
+    // El corte de una caja ya cerrada
     @Override
     public Corte obtenerCorte(int idCaja) {
         Corte corte = cajaDAO.buscarCorte(idCaja);

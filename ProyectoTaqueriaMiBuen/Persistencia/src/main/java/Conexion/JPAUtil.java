@@ -22,6 +22,7 @@ public class JPAUtil {
 
     private static EntityManagerFactory fabrica;
 
+    // Cada operacion pide su propio EntityManager y lo cierra al terminar; es como pedir una charola, usarla y regresarla
     public static EntityManager obtenerEntityManager() {
         if (fabrica == null) {
             LOG_HIBERNATE.setLevel(Level.SEVERE);

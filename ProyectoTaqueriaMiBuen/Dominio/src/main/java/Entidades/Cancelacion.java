@@ -48,6 +48,7 @@ public class Cancelacion implements Serializable {
         this.autorizadaPor = autorizadaPor;
     }
 
+    // Si nadie puso la fecha, se toma la de este momento al guardar
     @PrePersist
     protected void antesDeGuardar() {
         if (fecha == null) {

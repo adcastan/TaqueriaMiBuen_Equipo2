@@ -11,6 +11,7 @@ import jakarta.ws.rs.core.Response;
 @Path("jakartaee10")
 public class JakartaEE10Resource {
     
+    // Ruta de prueba que dejo NetBeans; contesta 'ping' para saber si el servidor responde
     @GET
     public Response ping(){
         return Response

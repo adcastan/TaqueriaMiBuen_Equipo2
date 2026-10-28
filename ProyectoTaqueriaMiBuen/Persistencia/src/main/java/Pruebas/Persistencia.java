@@ -1,6 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- */
 package Pruebas;
 
 import Conexion.JPAUtil;
@@ -34,6 +31,7 @@ import java.util.List;
  */
 public class Persistencia {
 
+    // Recorrido de prueba de toda la capa: se corre a mano desde NetBeans con la BD prendida
     public static void main(String[] args) {
         CuentaDAO cuentaDAO = new CuentaDAO();
         CategoriaDAO categoriaDAO = new CategoriaDAO();
@@ -200,6 +198,7 @@ public class Persistencia {
         }
     }
 
+    // Imprime un pedido con sus renglones para revisarlo en la consola
     private static void mostrarPedido(Pedido pedido) {
         System.out.println(pedido);
         for (DetallePedido d : pedido.getDetalles()) {

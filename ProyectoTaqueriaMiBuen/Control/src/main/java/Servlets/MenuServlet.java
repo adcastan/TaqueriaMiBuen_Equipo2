@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Servlets;
 
 import Entidades.Categoria;
@@ -29,6 +25,7 @@ public class MenuServlet extends HttpServlet {
 
     private final MenuService menuService = new MenuService();
 
+    // GET /api/menu: categorias con sus productos y extras para la pantalla de pedido
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {

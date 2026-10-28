@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Servlets;
 
 import DTO.ResultadoCobro;
@@ -45,6 +41,7 @@ public class CobroServlet extends HttpServlet {
         double montoRecibido;
     }
 
+    // GET /api/cobros: la caja abierta con lo cobrado y la lista de pedidos por cobrar
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
@@ -68,6 +65,7 @@ public class CobroServlet extends HttpServlet {
         }
     }
 
+    // POST /api/cobros/caja abre la caja; POST /api/cobros/{idPedido} cobra ese pedido
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         Usuario usuario = (Usuario) req.getSession().getAttribute("usuario");

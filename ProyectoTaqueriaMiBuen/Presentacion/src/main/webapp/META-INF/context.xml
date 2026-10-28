@@ -1,2 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Configuracion de Tomcat para esta aplicacion: la ruta con la que se abre (/TaqueriaMiBuen).
+-->
 <Context path="/TaqueriaMiBuen"/>

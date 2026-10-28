@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Servicios;
 
 import DAO.CuentaDAO;
@@ -27,6 +23,7 @@ public class EmpleadoService implements IEmpleadoService {
     private final IUsuarioDAO usuarioDAO = new UsuarioDAO();
     private final IAutenticacionService autenticacionService = new AutenticacionService();
 
+    // Da de alta a un empleado con su PIN y su rol
     @Override
     public Cuenta registrarEmpleado(String nombre, String telefono, String pin, Rol rol) {
         validar(nombre, telefono);
@@ -38,11 +35,13 @@ public class EmpleadoService implements IEmpleadoService {
         return autenticacionService.registrarCuenta(usuario, pin, rol);
     }
 
+    // Todos los empleados con su cuenta, para la pantalla de administracion
     @Override
     public List<Cuenta> obtenerEmpleados() {
         return cuentaDAO.listar();
     }
 
+    // Cambia nombre y telefono de un empleado, revisando que vengan bien
     @Override
     public Usuario actualizarDatos(int idUsuario, String nombre, String telefono) {
         Usuario usuario = obtenerUsuario(idUsuario);
@@ -53,6 +52,7 @@ public class EmpleadoService implements IEmpleadoService {
         return usuario;
     }
 
+    // Cambia el rol de un empleado; no se permite dejar al local sin administrador
     @Override
     public void cambiarRol(int idUsuario, Rol rol) {
         if (rol == null) {
@@ -65,6 +65,7 @@ public class EmpleadoService implements IEmpleadoService {
         cuentaDAO.actualizarRol(idUsuario, rol);
     }
 
+    // Baja logica: el empleado ya no puede entrar, pero su historial se queda
     @Override
     public void darDeBaja(int idUsuario) {
         Usuario usuario = obtenerUsuario(idUsuario);
@@ -72,12 +73,14 @@ public class EmpleadoService implements IEmpleadoService {
         usuarioDAO.cambiarActivo(idUsuario, false);
     }
 
+    // Regresa a un empleado que se habia dado de baja
     @Override
     public void reactivar(int idUsuario) {
         obtenerUsuario(idUsuario);
         usuarioDAO.cambiarActivo(idUsuario, true);
     }
 
+    // Busca al empleado y avisa con un mensaje claro si no existe
     private Usuario obtenerUsuario(int idUsuario) {
         Usuario usuario = usuarioDAO.buscarPorId(idUsuario);
         if (usuario == null) {
@@ -103,6 +106,7 @@ public class EmpleadoService implements IEmpleadoService {
         }
     }
 
+    // El nombre es obligatorio y el telefono, si lo ponen, debe tener 10 digitos
     private void validar(String nombre, String telefono) {
         if (nombre == null || nombre.isBlank()) {
             throw new NegocioException("Escribe el nombre del empleado");

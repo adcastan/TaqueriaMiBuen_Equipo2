@@ -48,6 +48,7 @@ public class Caja implements Serializable {
         this.usuario = usuario;
     }
 
+    // Deja la caja abierta con el dinero con el que empieza el turno
     public void abrir(double montoInicial) {
         this.montoInicial = montoInicial;
         this.fechaApertura = LocalDateTime.now();

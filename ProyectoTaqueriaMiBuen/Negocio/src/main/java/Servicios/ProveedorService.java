@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Servicios;
 
 import DAO.CompraDAO;
@@ -22,6 +18,7 @@ public class ProveedorService implements IProveedorService {
     private final IProveedorDAO proveedorDAO = new ProveedorDAO();
     private final ICompraDAO compraDAO = new CompraDAO();
 
+    // Da de alta un proveedor revisando sus datos
     @Override
     public Proveedor registrarProveedor(String nombre, String telefono, String correo) {
         validar(nombre, telefono, correo);
@@ -33,6 +30,7 @@ public class ProveedorService implements IProveedorService {
         return proveedor;
     }
 
+    // Cambia los datos de un proveedor
     @Override
     public Proveedor actualizarProveedor(int idProveedor, String nombre, String telefono, String correo) {
         Proveedor proveedor = obtenerProveedor(idProveedor);
@@ -48,6 +46,7 @@ public class ProveedorService implements IProveedorService {
         return proveedor;
     }
 
+    // Borra un proveedor solo si nunca se le ha comprado nada
     @Override
     public void eliminarProveedor(int idProveedor) {
         obtenerProveedor(idProveedor);
@@ -57,11 +56,13 @@ public class ProveedorService implements IProveedorService {
         proveedorDAO.eliminar(idProveedor);
     }
 
+    // Todos los proveedores
     @Override
     public List<Proveedor> obtenerProveedores() {
         return proveedorDAO.listar();
     }
 
+    // Busca un proveedor y avisa con un mensaje claro si no existe
     @Override
     public Proveedor obtenerProveedor(int idProveedor) {
         Proveedor proveedor = proveedorDAO.buscarPorId(idProveedor);
@@ -71,7 +72,7 @@ public class ProveedorService implements IProveedorService {
         return proveedor;
     }
 
-    // Validaciones dwe nombre, telefono y correo.
+    // Validaciones de nombre, telefono y correo.
     private void validar(String nombre, String telefono, String correo) {
         if (nombre == null || nombre.isBlank()) {
             throw new NegocioException("Escribe el nombre del proveedor");
@@ -84,6 +85,7 @@ public class ProveedorService implements IProveedorService {
         }
     }
 
+    // Un texto vacio se guarda como null, para no llenar la base de espacios
     private String vacioANulo(String texto) {
         return texto == null || texto.isBlank() ? null : texto.trim();
     }

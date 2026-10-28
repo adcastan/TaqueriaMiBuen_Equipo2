@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Servicios;
 
 import DAO.CompraDAO;
@@ -34,6 +30,7 @@ public class ReporteService implements IReporteService {
     private final IReporteVentaDAO reporteVentaDAO = new ReporteVentaDAO();
     private final ICompraDAO compraDAO = new CompraDAO();
     
+    // Calcula y guarda el reporte de ventas de un periodo
     @Override
     public ReporteVenta generarReporteVentas(LocalDateTime inicio, LocalDateTime fin) {
         validarPeriodo(inicio, fin);
@@ -43,17 +40,20 @@ public class ReporteService implements IReporteService {
         return reporte;
     }
 
+    // Los reportes de ventas que ya se han generado
     @Override
     public List<ReporteVenta> obtenerReportesVentas() {
         return reporteVentaDAO.listar();
     }
 
+    // Junta las compras de un periodo con su total
     @Override
     public ReporteCompras generarReporteCompras(LocalDateTime inicio, LocalDateTime fin) {
         validarPeriodo(inicio, fin);
         return new ReporteCompras(inicio, fin, compraDAO.listarPorPeriodo(inicio, fin));
     }
     
+    // Cuanto vendio y cuanto le cancelaron a cada mesero en un periodo
     @Override
     public List<RendimientoEmpleado> generarRendimientoEmpleados(LocalDateTime inicio, LocalDateTime fin) {
         validarPeriodo(inicio, fin);
@@ -76,6 +76,7 @@ public class ReporteService implements IReporteService {
         return lista;
     }
 
+    // Las dos fechas son obligatorias y la final no puede ser antes que la inicial
     private void validarPeriodo(LocalDateTime inicio, LocalDateTime fin) {
         if (inicio == null || fin == null) {
             throw new NegocioException("Selecciona la fecha de inicio y la fecha fin");

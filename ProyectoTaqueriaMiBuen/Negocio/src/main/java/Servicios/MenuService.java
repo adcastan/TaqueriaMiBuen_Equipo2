@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Servicios;
 
 import DAO.CategoriaDAO;
@@ -69,16 +65,19 @@ public class MenuService implements IMenuService {
         return productoDAO.buscarNoDisponibles(idsProductos).isEmpty();
     }
 
+    // Un producto con sus extras, o null si no existe
     @Override
     public Producto obtenerProducto(int idProducto) {
         return productoDAO.buscarPorId(idProducto);
     }
 
+    // Las categorias del menu en su orden
     @Override
     public List<Categoria> obtenerCategorias() {
         return categoriaDAO.listar();
     }
 
+    // Da de alta una categoria nueva sin repetir nombre
     @Override
     public Categoria registrarCategoria(String nombre, int orden) {
         if (nombre == null || nombre.isBlank()) {
@@ -113,6 +112,7 @@ public class MenuService implements IMenuService {
         return producto;
     }
 
+    // Cambia los datos de un producto revisando que vengan bien
     @Override
     public Producto actualizarProducto(int idProducto, ProductoDTO dto) {
         Producto producto = productoDAO.buscarPorId(idProducto);
@@ -130,6 +130,7 @@ public class MenuService implements IMenuService {
         return producto;
     }
 
+    // Da de baja o de alta un producto en el menu (por ejemplo, cuando se acaba)
     @Override
     public void cambiarDisponibilidad(int idProducto, boolean disponible) {
         if (productoDAO.buscarPorId(idProducto) == null) {
@@ -138,6 +139,7 @@ public class MenuService implements IMenuService {
         productoDAO.cambiarDisponible(idProducto, disponible);
     }
 
+    // Da de alta un ingrediente extra con su precio
     @Override
     public IngredienteExtra registrarExtra(String nombre, double precio, Integer idIngrediente) {
         if (nombre == null || nombre.isBlank()) {
@@ -158,11 +160,13 @@ public class MenuService implements IMenuService {
         return extra;
     }
 
+    // Todos los ingredientes extra
     @Override
     public List<IngredienteExtra> obtenerExtras() {
         return extraDAO.listar();
     }
 
+    // El producto necesita nombre y un precio mayor a cero
     private void validarProducto(ProductoDTO dto) {
         if (dto == null || dto.getNombre() == null || dto.getNombre().isBlank()) {
             throw new NegocioException("Escribe el nombre del producto");
@@ -172,6 +176,7 @@ public class MenuService implements IMenuService {
         }
     }
 
+    // Busca la categoria y avisa con un mensaje claro si no existe
     private Categoria obtenerCategoria(int idCategoria) {
         Categoria categoria = categoriaDAO.buscarPorId(idCategoria);
         if (categoria == null) {
@@ -180,6 +185,7 @@ public class MenuService implements IMenuService {
         return categoria;
     }
 
+    // Convierte la lista de ids de extras en los extras de verdad, avisando si alguno no existe
     private List<IngredienteExtra> buscarExtras(List<Integer> ids) {
         List<IngredienteExtra> extras = new ArrayList<>();
         if (ids != null) {

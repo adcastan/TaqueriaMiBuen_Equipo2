@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Servicios;
 
 import Entidades.DetalleExtra;
@@ -17,6 +13,7 @@ import java.util.List;
  */
 public class ImpresoraService implements IImpresoraService{
 
+    // Arma el ticket de cocina de respaldo para cuando el monitor no esta conectado
     @Override
     public void imprimirRespaldo(List<DetallePedido> detalles) {
         StringBuilder ticket = new StringBuilder();

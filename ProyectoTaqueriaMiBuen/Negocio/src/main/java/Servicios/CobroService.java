@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Servicios;
 
 import DAO.PagoDAO;
@@ -35,6 +31,7 @@ public class CobroService implements ICobroService {
     private final ICajaService cajaService = new CajaService();
     private final IAutenticacionService autenticacionService = new AutenticacionService();
 
+    // Pedidos que ya pidieron la cuenta y esperan al cajero
     @Override
     public List<Pedido> obtenerPedidosPorCobrar() {
         return pedidoDAO.listarPorCobrar();

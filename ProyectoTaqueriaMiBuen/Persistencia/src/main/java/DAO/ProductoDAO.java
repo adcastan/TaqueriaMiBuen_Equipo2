@@ -14,6 +14,7 @@ import java.util.List;
  */
 public class ProductoDAO implements IProductoDAO {
 
+    // Guarda un producto nuevo del menu junto con sus extras
     @Override
     public void registrar(Producto producto) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -31,6 +32,7 @@ public class ProductoDAO implements IProductoDAO {
         }
     }
 
+    // Busca un producto por su nombre exacto; null si no existe
     @Override
     public Producto buscarPorNombre(String nombre) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -145,6 +147,7 @@ public class ProductoDAO implements IProductoDAO {
         }
     }
 
+    // Guarda los cambios de un producto (nombre, precio, categoria, extras)
     @Override
     public void actualizar(Producto producto) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -162,6 +165,7 @@ public class ProductoDAO implements IProductoDAO {
         }
     }
 
+    // Da de baja o vuelve a dar de alta un producto en el menu sin borrarlo
     @Override
     public void cambiarDisponible(int idProducto, boolean disponible) {
         EntityManager em = JPAUtil.obtenerEntityManager();

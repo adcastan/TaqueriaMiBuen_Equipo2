@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package DAO;
 
 import Conexion.JPAUtil;
@@ -19,6 +15,7 @@ import java.util.List;
  */
 public class CajaDAO implements ICajaDAO {
 
+    // Guarda la caja nueva que abrio el cajero al iniciar su turno
     @Override
     public void abrir(Caja caja) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -36,6 +33,7 @@ public class CajaDAO implements ICajaDAO {
         }
     }
 
+    // Regresa la caja que esta abierta ahorita, o null si nadie ha abierto turno
     @Override
     public Caja buscarAbierta() {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -50,6 +48,7 @@ public class CajaDAO implements ICajaDAO {
         }
     }
 
+    // Busca una caja por su id; null si no existe
     @Override
     public Caja buscarPorId(int idCaja) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -84,6 +83,7 @@ public class CajaDAO implements ICajaDAO {
         }
     }
 
+    // Regresa el corte que se hizo al cerrar esa caja, o null si sigue abierta
     @Override
     public Corte buscarCorte(int idCaja) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -98,6 +98,7 @@ public class CajaDAO implements ICajaDAO {
         }
     }
 
+    // Cortes hechos entre dos fechas, para revisar como fueron los turnos
     @Override
     public List<Corte> listarCortes(LocalDateTime inicio, LocalDateTime fin) {
         EntityManager em = JPAUtil.obtenerEntityManager();

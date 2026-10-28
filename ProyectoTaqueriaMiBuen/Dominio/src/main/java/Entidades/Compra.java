@@ -55,6 +55,7 @@ public class Compra implements Serializable {
         this.usuario = usuario;
     }
 
+    // Antes de guardar se pone la fecha y se calcula el total de la compra
     @PrePersist
     protected void antesDeGuardar() {
         if (fecha == null) {
@@ -63,6 +64,7 @@ public class Compra implements Serializable {
         total = calcularTotal();
     }
 
+    // Suma de cantidad x costo de cada renglon de la compra
     public double calcularTotal() {
         double suma = 0;
         for (DetalleCompra d : detalles) {

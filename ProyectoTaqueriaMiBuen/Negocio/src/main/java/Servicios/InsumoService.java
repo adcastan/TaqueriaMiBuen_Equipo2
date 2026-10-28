@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Servicios;
 
 import DAO.CompraDAO;
@@ -36,6 +32,7 @@ public class InsumoService implements IInsumoService {
     private final IProveedorDAO proveedorDAO = new ProveedorDAO();
     private final IProductoDAO productoDAO = new ProductoDAO();
 
+    // Da de alta un ingrediente del almacen revisando sus datos
     @Override
     public Ingrediente registrarIngrediente(String nombre, String unidad, double existencia, double stockMinimo) {
         validar(nombre, unidad, stockMinimo);
@@ -50,6 +47,7 @@ public class InsumoService implements IInsumoService {
         return ingrediente;
     }
 
+    // Cambia nombre, unidad o minimo de un ingrediente
     @Override
     public Ingrediente actualizarIngrediente(int idIngrediente, String nombre, String unidad, double stockMinimo) {
         Ingrediente ingrediente = obtenerIngrediente(idIngrediente);
@@ -65,6 +63,7 @@ public class InsumoService implements IInsumoService {
         return ingrediente;
     }
 
+    // Corrige a mano cuanto hay de un ingrediente (despues de contar el almacen)
     @Override
     public Ingrediente ajustarExistencia(int idIngrediente, double existencia) {
         if (existencia < 0) {
@@ -76,11 +75,13 @@ public class InsumoService implements IInsumoService {
         return ingrediente;
     }
 
+    // Todos los ingredientes del almacen
     @Override
     public List<Ingrediente> obtenerIngredientes() {
         return ingredienteDAO.listar();
     }
 
+    // Ingredientes que ya estan en su minimo o abajo: hay que surtir
     @Override
     public List<Ingrediente> obtenerBajoStock() {
         return ingredienteDAO.listarBajoStock();
@@ -119,6 +120,7 @@ public class InsumoService implements IInsumoService {
         return compra;
     }
 
+    // Dice cuanto de un ingrediente lleva un producto
     @Override
     public ProductoIngrediente asignarReceta(int idProducto, int idIngrediente, double cantidad) {
         Producto producto = productoDAO.buscarPorId(idProducto);
@@ -133,11 +135,13 @@ public class InsumoService implements IInsumoService {
         return receta;
     }
 
+    // La receta completa de un producto
     @Override
     public List<ProductoIngrediente> obtenerReceta(int idProducto) {
         return ingredienteDAO.listarReceta(idProducto);
     }
 
+    // Busca el ingrediente y avisa con un mensaje claro si no existe
     private Ingrediente obtenerIngrediente(int idIngrediente) {
         Ingrediente ingrediente = ingredienteDAO.buscarPorId(idIngrediente);
         if (ingrediente == null) {
@@ -146,6 +150,7 @@ public class InsumoService implements IInsumoService {
         return ingrediente;
     }
 
+    // Nombre y unidad son obligatorios y el minimo no puede ser negativo
     private void validar(String nombre, String unidad, double stockMinimo) {
         if (nombre == null || nombre.isBlank()) {
             throw new NegocioException("Escribe el nombre del ingrediente");

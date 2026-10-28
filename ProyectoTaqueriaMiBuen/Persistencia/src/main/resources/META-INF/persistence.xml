@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Configuracion de JPA: a que base conectarse y que clases son tablas.
+    Si en su compu MySQL tiene otro usuario o contrasena, cambienlo en las propiedades jdbc de abajo.
+    schema-generation = none: Hibernate NO crea tablas; la base se arma con BD/ScriptBDTaqueriaMiBuen.sql.
+-->
 <persistence version="3.1" xmlns="https://jakarta.ee/xml/ns/persistence" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_0.xsd">
   <persistence-unit name="PersistenciaTaqueriaMiBuen" transaction-type="RESOURCE_LOCAL">
     <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>

@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Utilerias;
 
 import Conexion.JPAUtil;
@@ -18,6 +14,7 @@ import jakarta.servlet.annotation.WebListener;
 @WebListener
 public class CierreAplicacion implements ServletContextListener {
 
+    // Tomcat llama esto al apagar la aplicacion; cerramos la conexion a la base para no dejarla colgada
     @Override
     public void contextDestroyed(ServletContextEvent sce) {
         JPAUtil.cerrar();

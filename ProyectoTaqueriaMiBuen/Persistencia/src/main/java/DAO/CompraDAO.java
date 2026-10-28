@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package DAO;
 
 import Conexion.JPAUtil;
@@ -21,6 +17,7 @@ import java.util.List;
  */
 public class CompraDAO implements ICompraDAO {
 
+    // Guarda una compra a proveedor junto con sus renglones
     @Override
     public void registrar(Compra compra) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -45,6 +42,7 @@ public class CompraDAO implements ICompraDAO {
         }
     }
 
+    // Busca una compra con sus renglones; null si no existe
     @Override
     public Compra buscarPorId(int idCompra) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -59,6 +57,7 @@ public class CompraDAO implements ICompraDAO {
         }
     }
 
+    // Compras hechas entre dos fechas (para el reporte de compras)
     @Override
     public List<Compra> listarPorPeriodo(LocalDateTime inicio, LocalDateTime fin) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -78,6 +77,7 @@ public class CompraDAO implements ICompraDAO {
         }
     }
 
+    // Cuantas compras tiene un proveedor; si tiene alguna ya no se puede borrar
     @Override
     public long contarPorProveedor(int idProveedor) {
         EntityManager em = JPAUtil.obtenerEntityManager();

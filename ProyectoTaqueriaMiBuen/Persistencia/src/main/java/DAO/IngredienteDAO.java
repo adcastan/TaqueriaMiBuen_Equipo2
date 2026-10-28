@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package DAO;
 
 import Conexion.JPAUtil;
@@ -17,6 +13,7 @@ import java.util.List;
  */
 public class IngredienteDAO implements IIngredienteDAO {
 
+    // Guarda un ingrediente nuevo del almacen
     @Override
     public void registrar(Ingrediente ingrediente) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -34,6 +31,7 @@ public class IngredienteDAO implements IIngredienteDAO {
         }
     }
 
+    // Guarda los cambios de un ingrediente (nombre, unidad, existencia, minimo)
     @Override
     public void actualizar(Ingrediente ingrediente) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -51,6 +49,7 @@ public class IngredienteDAO implements IIngredienteDAO {
         }
     }
 
+    // Busca un ingrediente por su id; null si no existe
     @Override
     public Ingrediente buscarPorId(int idIngrediente) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -61,6 +60,7 @@ public class IngredienteDAO implements IIngredienteDAO {
         }
     }
 
+    // Busca un ingrediente por su nombre; sirve para no darlo de alta dos veces
     @Override
     public Ingrediente buscarPorNombre(String nombre) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -75,6 +75,7 @@ public class IngredienteDAO implements IIngredienteDAO {
         }
     }
 
+    // Todos los ingredientes ordenados por nombre
     @Override
     public List<Ingrediente> listar() {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -86,6 +87,7 @@ public class IngredienteDAO implements IIngredienteDAO {
         }
     }
 
+    // Ingredientes que ya llegaron o bajaron de su minimo: hay que comprar
     @Override
     public List<Ingrediente> listarBajoStock() {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -98,6 +100,7 @@ public class IngredienteDAO implements IIngredienteDAO {
         }
     }
 
+    // Guarda cuanto de un ingrediente lleva un producto (la receta)
     @Override
     public void registrarReceta(ProductoIngrediente receta) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -115,6 +118,7 @@ public class IngredienteDAO implements IIngredienteDAO {
         }
     }
 
+    // La receta de un producto: que ingredientes lleva y cuanto de cada uno
     @Override
     public List<ProductoIngrediente> listarReceta(int idProducto) {
         EntityManager em = JPAUtil.obtenerEntityManager();
