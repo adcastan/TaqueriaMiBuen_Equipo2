@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Filtros;
 
 import Utilerias.Json;
@@ -34,6 +30,7 @@ public class FiltroSeguridad implements Filter {
     private static final List<String> ROLES_PEDIDOS = List.of("MESERO", "CAJERO", "ADMINISTRADOR");
     private static final List<String> ROLES_CAJA = List.of("CAJERO", "ADMINISTRADOR");
     
+    // Pasa por aqui TODA peticion: si no hay sesion o el rol no tiene permiso, no la deja seguir
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)throws IOException, ServletException {
         HttpServletRequest req = (HttpServletRequest) request;
@@ -55,7 +52,14 @@ public class FiltroSeguridad implements Filter {
 
         boolean esCocina = ruta.startsWith("/api/kds") || ruta.equals("/kds.jsp");
         boolean esCaja = ruta.startsWith("/api/cobros") || ruta.equals("/cobro.jsp");
-        List<String> permitidos = esCocina ? ROLES_COCINA : ROLES_PEDIDOS;
+        // Cada zona tiene sus roles: cocina, caja o pedidos. Antes la caja no se
+        // revisaba y un mesero podia abrir la pantalla de cobro escribiendo la ruta
+        List<String> permitidos = ROLES_PEDIDOS;
+        if (esCocina) {
+            permitidos = ROLES_COCINA;
+        } else if (esCaja) {
+            permitidos = ROLES_CAJA;
+        }
         if (!ruta.equals("/logout") && !permitidos.contains(rol)) {
             negar(req, resp, 403, "Tu rol no tiene permiso para esta pantalla");
             return;
