@@ -19,7 +19,11 @@ async function api(url, metodo = 'GET', datos = null) {
     try {
         respuesta = await fetch(url, opciones);
     } catch (e) {
-        throw new Error('No hay conexion con el servidor');
+        // fetch solo truena asi cuando no hubo respuesta (sin red o servidor apagado).
+        // Lo marcamos para que la pantalla ofrezca "Reintentar" sin perder lo capturado.
+        const error = new Error('Sin conexion. El pedido no se ha enviado');
+        error.sinConexion = true;
+        throw error;
     }
 
     // Si la sesion se termino el filtro contesta 401 y regresamos al login
@@ -32,13 +36,32 @@ async function api(url, metodo = 'GET', datos = null) {
         return null;
     }
 
-    const cuerpo = await respuesta.json();
+    // Si Tomcat contesta con su pagina de error en HTML, json() truena; mejor avisar bonito
+    let cuerpo = null;
+    try {
+        cuerpo = await respuesta.json();
+    } catch (e) {
+        cuerpo = {error: 'El servidor contesto algo inesperado (' + respuesta.status + ')'};
+    }
     if (!respuesta.ok) {
-        const error = new Error(cuerpo.error || 'No se pudo completar la operacion');
+        const error = new Error((cuerpo && cuerpo.error) || 'No se pudo completar la operacion');
         error.estado = respuesta.status;
+        error.datos = cuerpo;
         throw error;
     }
     return cuerpo;
+}
+
+/**
+ * Clave al azar para un envio. Si la red falla y se reintenta, se manda la
+ * misma clave y el servidor se da cuenta de que es el mismo envio.
+ */
+function nuevaClaveEnvio() {
+    if (window.crypto && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    // Navegadores viejitos o paginas sin https: se arma una a mano
+    return 'env-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
 }
 
 // 45 -> "$45.00"
@@ -57,6 +80,7 @@ function escapar(texto) {
 
 // Muestra un aviso abajo de la pantalla por unos segundos
 let temporizadorAviso = null;
+// Muestra un aviso abajo de la pantalla por unos segundos (rojo si es error)
 function mostrarAviso(mensaje, esError = false) {
     const aviso = document.getElementById('toast');
     aviso.textContent = mensaje;
@@ -71,10 +95,12 @@ function abrirModal(html) {
         '<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true">' + html + '</section></div>';
 }
 
+// Cierra la ventana que este abierta
 function cerrarModal() {
     document.getElementById('modal-root').innerHTML = '';
 }
 
+// Cierra la sesion en el servidor y regresa al login pase lo que pase
 async function cerrarSesion() {
     try {
         await api('logout', 'POST', {});
