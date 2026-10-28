@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Modulo Control: servlets, filtro de seguridad y utilerias para mandar y leer JSON.
+    El servlet-api va como "provided" porque Tomcat ya lo trae; si lo metemos al WAR choca.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
@@ -27,7 +31,7 @@
         </dependency>
     </dependencies>
     <properties>
-        <maven.compiler.release>24</maven.compiler.release>
+        <maven.compiler.release>17</maven.compiler.release>
         <exec.mainClass>com.mycompany.control.Control</exec.mainClass>
     </properties>
 </project>
