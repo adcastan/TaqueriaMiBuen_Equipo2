@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Interface.java to edit this template
- */
 package IAccesoDatos;
 
 import Entidades.Mesa;
@@ -37,4 +33,10 @@ public interface IMesaDAO {
 
     // Lee la mesa bloqueandola dentro de la transaccion que recibe.
     public Mesa bloquearParaActualizar(EntityManager em, int idMesa);
+
+    // Pone la mesa en verde, rojo o ambar segun los pedidos que tenga, dentro de la transaccion que recibe.
+    public void recalcularEstado(EntityManager em, Mesa mesa);
+
+    // Id de la mesa de un pedido local, o null si el pedido no es de mesa.
+    public Integer idMesaDelPedido(int idPedido);
 }

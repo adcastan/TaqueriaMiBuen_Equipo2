@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package DAO;
 
 import Conexion.JPAUtil;
@@ -9,8 +5,6 @@ import Entidades.Caja;
 import Entidades.Mesa;
 import Entidades.Pago;
 import Entidades.Pedido;
-import Entidades.PedidoLocal;
-import Enums.EstadoMesa;
 import Enums.EstadoPedido;
 import IAccesoDatos.IPagoDAO;
 import jakarta.persistence.EntityManager;
@@ -24,6 +18,8 @@ import java.util.List;
  */
 public class PagoDAO implements IPagoDAO {
 
+    private final MesaDAO mesaDAO = new MesaDAO();
+
     /**
      * Todo va en una transaccion: si algo falla no queda un pago sin pedido
      * pagado ni una mesa liberada sin cobrar. 
@@ -33,7 +29,10 @@ public class PagoDAO implements IPagoDAO {
     public Pago registrarPago(Pago pago) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
+            // Mismo orden de bloqueo que en PedidoDAO: primero la mesa, luego el pedido
+            Integer idMesa = mesaDAO.idMesaDelPedido(pago.getPedido().getIdPedido());
             em.getTransaction().begin();
+            Mesa mesa = idMesa == null ? null : mesaDAO.bloquearParaActualizar(em, idMesa);
             Pedido pedido = em.find(Pedido.class, pago.getPedido().getIdPedido(), LockModeType.PESSIMISTIC_WRITE);
             if (pedido.getEstado() != EstadoPedido.POR_COBRAR) {
                 throw new IllegalStateException("Solo se puede cobrar un pedido por cobrar");
@@ -43,20 +42,10 @@ public class PagoDAO implements IPagoDAO {
             pago.setCaja(em.find(Caja.class, pago.getCaja().getIdCaja()));
             em.persist(pago);
 
-            // La mesa queda libre si ya no tiene otro pedido activo (cuenta separada)
-            if (pedido instanceof PedidoLocal) {
-                Mesa mesa = ((PedidoLocal) pedido).getMesa();
-                Long otrosActivos = em.createQuery(
-                        "SELECT COUNT(p) FROM PedidoLocal p WHERE p.mesa.idMesa = :idMesa "
-                        + "AND p.idPedido <> :idPedido AND p.estado IN (:abierto, :porCobrar)", Long.class)
-                        .setParameter("idMesa", mesa.getIdMesa())
-                        .setParameter("idPedido", pedido.getIdPedido())
-                        .setParameter("abierto", EstadoPedido.ABIERTO)
-                        .setParameter("porCobrar", EstadoPedido.POR_COBRAR)
-                        .getSingleResult();
-                if (otrosActivos == 0) {
-                    mesa.setEstado(EstadoMesa.DISPONIBLE);
-                }
+            // La mesa se recalcula con la misma regla de siempre: si le quedan
+            // otras cuentas sigue ocupada o en ambar, si no, vuelve a verde
+            if (mesa != null) {
+                mesaDAO.recalcularEstado(em, mesa);
             }
             em.getTransaction().commit();
             return pago;
@@ -70,6 +59,7 @@ public class PagoDAO implements IPagoDAO {
         }
     }
 
+    // El pago de un pedido, o null si todavia no se cobra
     @Override
     public Pago buscarPorPedido(int idPedido) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -84,6 +74,7 @@ public class PagoDAO implements IPagoDAO {
         }
     }
 
+    // Todos los pagos que entraron a una caja, en orden de hora
     @Override
     public List<Pago> listarPorCaja(int idCaja) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -97,6 +88,7 @@ public class PagoDAO implements IPagoDAO {
         }
     }
 
+    // Cuanto se cobro en una caja con un metodo (efectivo o tarjeta); sirve para el corte
     @Override
     public double totalPorMetodo(int idCaja, String metodo) {
         EntityManager em = JPAUtil.obtenerEntityManager();

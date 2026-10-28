@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Servlets;
 
 import Entidades.Mesa;
@@ -29,13 +25,15 @@ public class MesaServlet extends HttpServlet {
 
     private final PedidoService pedidoService = new PedidoService();
 
+    // GET /api/mesas: las 8 mesas con su color y, si tienen, la cuenta que llevan
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
             List<Map<String, Object>> mesas = new ArrayList<>();
             for (Mesa mesa : pedidoService.obtenerMesas()) {
                 Pedido activo = null;
-                if (mesa.getEstado() == EstadoMesa.OCUPADA) {
+                // Ocupada o pendiente de pago: se manda tambien el pedido para mostrar la cuenta
+                if (mesa.getEstado() != EstadoMesa.DISPONIBLE) {
                     activo = pedidoService.obtenerPedidoActivo(mesa.getIdMesa());
                 }
                 mesas.add(Convertidor.mesa(mesa, activo));
