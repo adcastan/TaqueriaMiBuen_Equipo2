@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Servlets;
 
 import Entidades.Usuario;
@@ -35,6 +31,7 @@ public class LoginServlet extends HttpServlet {
         String pin;
     }
 
+    // POST /login entra con el PIN; POST /logout cierra la sesion
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         if ("/logout".equals(req.getServletPath())) {
@@ -52,6 +49,9 @@ public class LoginServlet extends HttpServlet {
             Rol rol = autenticacionService.obtenerRol(usuario);
 
             HttpSession sesion = req.getSession(true);
+            // Se cambia el id de la sesion al entrar; asi nadie que haya visto el id
+            // viejo (por ejemplo en una compu compartida) se puede colar con nuestra sesion
+            req.changeSessionId();
             sesion.setAttribute("usuario", usuario);
             sesion.setAttribute("rol", rol.name());
 
