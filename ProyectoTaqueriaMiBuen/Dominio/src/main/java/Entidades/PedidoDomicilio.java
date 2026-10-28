@@ -44,7 +44,8 @@ public class PedidoDomicilio extends Pedido {
      */
     @Override
     public double calcularTotal() {
-        return calcularSubtotal() + costoEnvio;
+        // Al subtotal de la comida se le suma el envio fijo
+        return Herramientas.Dinero.redondear(calcularSubtotal() + costoEnvio);
     }
 
     public double getCostoEnvio() {
