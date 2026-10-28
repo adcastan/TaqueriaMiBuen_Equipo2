@@ -1,10 +1,7 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Interface.java to edit this template
- */
 package IAccesoDatos;
 
 import Entidades.DetallePedido;
+import Enums.EstadoPreparacion;
 import java.util.List;
 
 /**
@@ -21,6 +18,9 @@ public interface IKdsDAO {
 
     // Marca un detalle como listo.
     public void marcarListo(int idDetalle);
+
+    // Pasa un detalle a EN_PREPARACION o LISTO.
+    public void cambiarEstado(int idDetalle, EstadoPreparacion nuevo);
 
     // Guarda la hora del ultimo aviso de la terminal.
     public void registrarLatido(int idTerminal);

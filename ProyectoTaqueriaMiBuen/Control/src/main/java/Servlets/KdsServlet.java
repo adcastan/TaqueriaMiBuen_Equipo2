@@ -1,9 +1,6 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package Servlets;
 
+import Exceptions.NegocioException;
 import Entidades.DetallePedido;
 import Servicios.KdsService;
 import Utilerias.Convertidor;
@@ -29,6 +26,7 @@ public class KdsServlet extends HttpServlet {
 
     private final KdsService kdsService = new KdsService();
 
+    // GET /api/kds?terminal=1: la cola de cocina; de paso cuenta como latido de la pantalla
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         try {
@@ -46,21 +44,40 @@ public class KdsServlet extends HttpServlet {
         }
     }
 
+    // Cuerpo de POST /api/kds/detalles/{id}/estado
+    private static class NuevoEstado {
+        String estado;
+    }
+
+    /**
+     * POST /api/kds/detalles/{id}/listo           lo marca listo (se queda por compatibilidad)
+     * POST /api/kds/detalles/{id}/estado {estado} lo pasa a EN_PREPARACION o LISTO
+     */
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        String ruta = req.getPathInfo(); 
+        String ruta = req.getPathInfo();
         String[] partes = ruta == null ? new String[0] : ruta.split("/");
-        if (partes.length != 4 || !partes[1].equals("detalles") || !partes[3].equals("listo")) {
+        if (partes.length != 4 || !partes[1].equals("detalles")
+                || !(partes[3].equals("listo") || partes[3].equals("estado"))) {
             Json.error(resp, 404, "Ruta no encontrada");
             return;
         }
         try {
-            kdsService.marcarListo(Integer.parseInt(partes[2]));
+            int idDetalle = Integer.parseInt(partes[2]);
+            if (partes[3].equals("listo")) {
+                kdsService.marcarListo(idDetalle);
+            } else {
+                NuevoEstado datos = Json.leer(req, NuevoEstado.class);
+                kdsService.cambiarEstado(idDetalle, datos.estado);
+            }
             resp.setStatus(204);
         } catch (NumberFormatException e) {
             Json.error(resp, 400, "El id del detalle no es un numero");
+        } catch (NegocioException | IllegalArgumentException e) {
+            // Por ejemplo: el mesero lo quito justo antes de que el cocinero le picara
+            Json.error(resp, 409, e.getMessage());
         } catch (RuntimeException e) {
-            Json.error(resp, 500, "No se pudo marcar como listo: " + e.getMessage());
+            Json.error(resp, 500, "No se pudo cambiar el estado: " + e.getMessage());
         }
     }
 }

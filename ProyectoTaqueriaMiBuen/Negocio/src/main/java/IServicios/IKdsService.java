@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Interface.java to edit this template
- */
 package IServicios;
 
 import Entidades.DetallePedido;
@@ -20,6 +16,9 @@ public interface IKdsService {
 
     // Marca un detalle como listo.
     public void marcarListo(int idDetalle);
+
+    // Cambia el estado de un detalle: EN_PREPARACION o LISTO.
+    public void cambiarEstado(int idDetalle, String estado);
 
     // true si algun monitor dio latido hace poco.
     public boolean hayKdsConectado();
