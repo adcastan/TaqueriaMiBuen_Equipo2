@@ -69,6 +69,7 @@ Si los datos son validos se guardan en el navegador (sessionStorage) y se pasa a
                     }
                 }
 
+                // Lo que escribio el usuario en un campo, sin espacios de sobra
                 function valor(id) {
                     return document.getElementById(id).value.trim();
                 }
@@ -77,26 +78,40 @@ Si los datos son validos se guardan en el navegador (sessionStorage) y se pasa a
                  * Revisa los campos obligatorios y que el telefono tenga 10 digitos.
                  * Es la misma regla que DatosEntrega.validar() en Java.
                  */
+                // Pone en rojo el campo y su mensaje, o lo limpia si el mensaje viene vacio
+                function marcar(idCampo, idError, mensaje) {
+                    document.getElementById(idError).textContent = mensaje;
+                    document.getElementById(idCampo).closest('.field').classList.toggle('invalid', mensaje !== '');
+                }
+
+                /**
+                 * Revisa los campos obligatorios y que el telefono tenga 10 digitos.
+                 * Es la misma regla que DatosEntrega.validar() en Java (RN-06).
+                 */
                 function validar() {
                     let valido = true;
-                    document.getElementById('errorNombre').textContent = '';
-                    document.getElementById('errorTelefono').textContent = '';
-                    document.getElementById('errorDireccion').textContent = '';
+                    marcar('nombreCliente', 'errorNombre', '');
+                    marcar('telefono', 'errorTelefono', '');
+                    marcar('direccion', 'errorDireccion', '');
                     if (valor('nombreCliente') === '') {
-                        document.getElementById('errorNombre').textContent = 'Escribe el nombre';
+                        marcar('nombreCliente', 'errorNombre', 'Campo obligatorio');
                         valido = false;
                     }
-                    if (!/^\d{10}$/.test(valor('telefono'))) {
-                        document.getElementById('errorTelefono').textContent = 'Deben ser 10 numeros';
+                    if (valor('telefono') === '') {
+                        marcar('telefono', 'errorTelefono', 'Campo obligatorio');
+                        valido = false;
+                    } else if (!/^\d{10}$/.test(valor('telefono'))) {
+                        marcar('telefono', 'errorTelefono', 'Deben ser 10 numeros, sin espacios ni guiones');
                         valido = false;
                     }
                     if (valor('direccion') === '') {
-                        document.getElementById('errorDireccion').textContent = 'Escribe la direccion';
+                        marcar('direccion', 'errorDireccion', 'Campo obligatorio');
                         valido = false;
                     }
                     return valido;
                 }
 
+                // Si todo esta bien, guarda los datos en el navegador y pasa a la toma de pedido
                 function continuar() {
                     if (!validar()) {
                         mostrarAviso('Revisa los campos marcados', true);
