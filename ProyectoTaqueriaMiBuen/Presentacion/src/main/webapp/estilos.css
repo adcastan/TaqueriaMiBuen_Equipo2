@@ -312,6 +312,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .ticket-total strong { font-size: 36px; font-weight: 800; color: var(--verde); }
 .ticket-actions { display: flex; flex-direction: column; gap: var(--separacion); }
 .ticket-actions .btn.primary:first-child { min-height: var(--boton-principal); font-size: 19px; }
+/* Dentro de "Opciones": cancelar va separado de lo demas */
+.opcion-peligrosa { margin-top: 16px; }
 /* Lo peligroso va al final, separado y menos llamativo */
 .ticket-actions .btn.danger { margin-top: 12px; min-height: 48px; background: var(--tarjeta); color: var(--rojo); border-color: var(--rojo-suave); }
 .ticket-note { margin-top: 12px; color: var(--texto-suave); font-size: 14px; text-align: center; }

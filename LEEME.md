@@ -129,7 +129,14 @@ Todo se probó con MySQL 8 y Tomcat 10.1 de verdad y el WAR compilado de este mi
 
 ## 7. Pendientes
 
-- **Pantallas:** el diseño visual se está rehaciendo con Google Stitch (más claro para gente que no usa tecnología: botones grandes con texto, deshacer en vez de confirmar, nada de error de dedo). La funcionalidad ya está; falta aplicar el diseño nuevo.
+- **Pantallas:** el diseño 2.0 (base hecha en Google Stitch) ya está aplicado en CU-02. Reglas que siguen todas las pantallas, para que el siguiente equipo las respete:
+  - pocos colores y solo con significado: verde libre o acción, rojo ocupada o peligro, ámbar pidió la cuenta;
+  - botones de 56 px (64 px el principal) con 12 px de separación; icono o texto claro, nada que dependa del mouse;
+  - lo seleccionado en verde lleno con palomita;
+  - "Deshacer" para lo que se puede revertir y confirmación solo para lo que no (cancelar, pedir la cuenta);
+  - pocos botones por pantalla: lo que se usa poco va en "Opciones";
+  - el monitor de parrilla agrupa por comanda, cambia de color con los minutos de espera (8 y 15, se ajustan en `kds.js`) y muestra la tira "En plancha";
+  - todo es local: la letra Inter está en `assets/fuentes` (licencia OFL), no se usan CDN ni fotos de internet. Si el dueño manda fotos de sus platillos, se agregan en `assets`.
 - **Para el siguiente equipo:** el resto de los casos de uso. La base ya los soporta y el patrón es el mismo (Servlet → Service → DAO):
   - CU-01 Administrar Menú (alta de productos, paquetes, extras, precio de apps).
   - CU-04 Administrar Caja (salidas y corte por forma de pago, sin corte con cuentas pendientes).

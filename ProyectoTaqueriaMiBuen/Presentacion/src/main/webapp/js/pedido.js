@@ -519,9 +519,13 @@ function dibujarEncabezado() {
                 + ' - abrio ' + (pedidoActual.abiertoPor || '')
                 + (pedidoActual.modificadoPor ? ' - ultimo cambio: ' + pedidoActual.modificadoPor + ' ' + pedidoActual.horaModificacion : '');
     }
+    // Arriba solo quien lo abrio y a que hora; el folio va chico dentro del ticket
+    if (pedidoActual) {
+        subtitulo = (cuentaSeparada ? 'Cuenta separada · ' : '') + 'Abrio ' + (pedidoActual.abiertoPor || '') + ' · ' + (pedidoActual.hora || '');
+    }
     document.getElementById('subtitulo').textContent = subtitulo;
     document.getElementById('destino').textContent = 'ORDENANDO: ' + destino.toUpperCase();
-    document.getElementById('tituloTicket').textContent = 'TICKET - ' + destino.toUpperCase();
+    document.getElementById('tituloTicket').textContent = 'Cuenta';
     document.getElementById('folio').textContent = pedidoActual ? pedidoActual.folio : 'NUEVO';
 
     // Campos extra segun el tipo, solo cuando el pedido es nuevo
@@ -652,16 +656,11 @@ function dibujarAcciones() {
     if (pedidoActual && pedidoActual.estado === 'POR_COBRAR' && esCajero) {
         html += '<a class="btn primary full" href="cobro.jsp?pedido=' + pedidoActual.idPedido + '">COBRAR PEDIDO</a>';
     }
+    // Lo que se usa poco (cambiar o juntar mesa, cuenta separada, cancelar) va en
+    // una sola ventana de opciones: asi el ticket no se llena de botones
     if (pedidoActual && (pedidoActual.estado === 'ABIERTO' || pedidoActual.estado === 'POR_COBRAR')) {
-        html += '<button class="btn danger full" onclick="abrirCancelar()">CANCELAR PEDIDO</button>';
-    }
-    if (pedidoActual && tipo === 'LOCAL' && pedidoActual.estado !== 'CANCELADO' && pedidoActual.estado !== 'PAGADO') {
-        // Mover la cuenta o juntar mesas para un grupo grande (RN-12 y RN-13)
-        html += '<button class="btn secondary full" onclick="abrirCambiarMesa()">CAMBIAR DE MESA</button>';
-        html += '<button class="btn secondary full" onclick="abrirJuntarMesa()">JUNTAR CON OTRA MESA</button>';
-        if (pedidoActual.estado === 'ABIERTO') {
-            html += '<a class="btn secondary full" href="tomarPedido.jsp?mesa=' + idMesa + '&separada=1">NUEVA CUENTA SEPARADA EN ESTA MESA</a>';
-        }
+        html += '<button class="btn secondary full" onclick="abrirOpciones()">'
+                + (tipo === 'LOCAL' ? 'OPCIONES DE LA MESA' : 'OPCIONES DEL PEDIDO') + '</button>';
     }
     // Si la mesa tiene varias cuentas, botones para brincar de una a otra (RN-14)
     if (cuentasMesa.length > 1) {
@@ -1104,6 +1103,26 @@ function protegerEnlaces() {
             evento.returnValue = '';
         }
     });
+}
+
+// ---------- Opciones de la mesa o del pedido ----------
+
+/**
+ * Ventana con las acciones que se usan poco. Las comunes van arriba y
+ * "Cancelar pedido" va al final, separado y en rojo, para no picarlo sin querer.
+ */
+function abrirOpciones() {
+    let html = '<div class="modal-basic"><h2>' + escapar(textoDestino()) + '</h2>';
+    if (tipo === 'LOCAL') {
+        html += '<button class="btn secondary full" onclick="abrirCambiarMesa()">CAMBIAR DE MESA</button>'
+                + '<button class="btn secondary full" onclick="abrirJuntarMesa()">JUNTAR CON OTRA MESA</button>';
+        if (pedidoActual.estado === 'ABIERTO') {
+            html += '<a class="btn secondary full" href="tomarPedido.jsp?mesa=' + idMesa + '&separada=1">NUEVA CUENTA SEPARADA</a>';
+        }
+    }
+    html += '<button class="btn outline full opcion-peligrosa" onclick="abrirCancelar()">CANCELAR PEDIDO</button>'
+            + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>';
+    abrirModal(html);
 }
 
 // ---------- Cambiar de mesa y juntar mesas ----------
