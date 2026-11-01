@@ -528,11 +528,17 @@ function dibujarEncabezado() {
     document.getElementById('tituloTicket').textContent = 'Cuenta';
     document.getElementById('folio').textContent = pedidoActual ? pedidoActual.folio : 'NUEVO';
 
-    // Campos extra segun el tipo, solo cuando el pedido es nuevo
-    document.getElementById('bloquePersonas').hidden = !(tipo === 'LOCAL' && !pedidoActual);
-    document.getElementById('bloqueCliente').hidden = !(tipo === 'LLEVAR' && !pedidoActual);
-    if (tipo === 'LLEVAR' && !pedidoActual) {
-        dibujarCanales();
+    // Las personas, el nombre y el canal se capturan en la ventana "Abrir pedido";
+    // en la pantalla solo queda un resumen y el boton "Cambiar datos"
+    document.getElementById('bloquePersonas').hidden = true;
+    document.getElementById('bloqueCliente').hidden = true;
+    const nuevoConVentana = !pedidoActual && (tipo === 'LOCAL' || tipo === 'LLEVAR');
+    document.getElementById('btnCambiarDatos').hidden = !nuevoConVentana;
+    if (nuevoConVentana && tipo === 'LOCAL') {
+        document.getElementById('subtitulo').textContent = 'Comer aqui · ' + personasElegidas + ' personas';
+    } else if (nuevoConVentana) {
+        const nombre = document.getElementById('nombreCliente').value.trim();
+        document.getElementById('subtitulo').textContent = 'Para llevar' + (nombre ? ' · ' + nombre : '');
     }
     const entrega = pedidoActual && tipo === 'DOMICILIO' ? pedidoActual : datosEntrega;
     const bloqueEntrega = document.getElementById('bloqueEntrega');
@@ -709,24 +715,16 @@ function validarTipo() {
         return true;
     }
     if (tipo === 'LOCAL') {
-        const texto = document.getElementById('numeroPersonas').value.trim();
-        const personas = Number(texto);
-        if (texto === '') {
-            marcarCampo('numeroPersonas', 'Campo obligatorio');
-            return false;
-        }
+        const personas = Number(document.getElementById('numeroPersonas').value);
+        // Si algo falta se vuelve a abrir la ventana para completarlo
         if (!Number.isInteger(personas) || personas < 1 || personas > 20) {
-            marcarCampo('numeroPersonas', 'De 1 a 20 personas');
+            abrirVentanaPedido();
             return false;
         }
-        marcarCampo('numeroPersonas', '');
     }
-    if (tipo === 'LLEVAR') {
-        if (document.getElementById('nombreCliente').value.trim() === '') {
-            marcarCampo('nombreCliente', 'Campo obligatorio');
-            return false;
-        }
-        marcarCampo('nombreCliente', '');
+    if (tipo === 'LLEVAR' && document.getElementById('nombreCliente').value.trim() === '') {
+        abrirVentanaPedido();
+        return false;
     }
     return true;
 }
@@ -1105,6 +1103,63 @@ function protegerEnlaces() {
     });
 }
 
+// ---------- Ventana "Abrir pedido" (subflujo Tipar pedido) ----------
+
+// Personas que se eligen con los botones - y + (de 1 a 20)
+let personasElegidas = 2;
+
+/**
+ * Ventana del inicio del pedido. En mesa: "Comer aqui" y el numero de personas
+ * con botones grandes (nada de teclado). Para llevar: nombre del cliente y por
+ * donde llego (las apps usan su precio). Asi el menu queda limpio y el dato no
+ * se olvida, porque sin esto no se puede seguir.
+ */
+function abrirVentanaPedido() {
+    if (tipo === 'LOCAL') {
+        abrirModal('<div class="modal-basic"><h2>Abrir pedido · ' + escapar(textoDestino()) + '</h2>'
+                + '<div class="custom-options"><span class="custom-option active">Comer aqui</span></div>'
+                + '<div class="quantity-panel"><div><strong>PERSONAS</strong><small>Cuantos se sientan</small></div>'
+                + '<div class="large-qty">'
+                + '<button type="button" onclick="cambiarPersonas(-1)" ' + (personasElegidas <= 1 ? 'disabled' : '') + ' aria-label="Una persona menos">-</button>'
+                + '<span>' + personasElegidas + '<small>PERSONAS</small></span>'
+                + '<button type="button" onclick="cambiarPersonas(1)" ' + (personasElegidas >= 20 ? 'disabled' : '') + ' aria-label="Una persona mas">+</button>'
+                + '</div></div>'
+                + '<button class="btn primary full" onclick="confirmarAbrirPedido()">ABRIR PEDIDO</button>'
+                + '<a class="btn secondary full" href="mesas.jsp">REGRESAR A MESAS</a></div>');
+        return;
+    }
+    const nombre = document.getElementById('nombreCliente').value;
+    abrirModal('<div class="modal-basic"><h2>Pedido para llevar</h2>'
+            + '<div class="field"><label for="nombreVentana">Nombre del cliente (para llamarlo cuando este listo)</label>'
+            + '<input id="nombreVentana" maxlength="100" value="' + escapar(nombre) + '"></div>'
+            + '<div class="field"><label>Por donde llego</label><div class="custom-options" id="canales"></div></div>'
+            + '<button class="btn primary full" onclick="confirmarAbrirPedido()">ABRIR PEDIDO</button>'
+            + '<a class="btn secondary full" href="mesas.jsp">REGRESAR A MESAS</a></div>');
+    dibujarCanales();
+}
+
+// Botones - y + de personas; se vuelve a pintar la ventana
+function cambiarPersonas(cambio) {
+    personasElegidas = Math.max(1, Math.min(20, personasElegidas + cambio));
+    abrirVentanaPedido();
+}
+
+// Guarda lo de la ventana y deja al mesero en el menu
+function confirmarAbrirPedido() {
+    if (tipo === 'LOCAL') {
+        document.getElementById('numeroPersonas').value = personasElegidas;
+    } else {
+        const nombre = document.getElementById('nombreVentana').value.trim();
+        if (!nombre) {
+            marcarCampo('nombreVentana', 'Campo obligatorio');
+            return;
+        }
+        document.getElementById('nombreCliente').value = nombre;
+    }
+    cerrarModal();
+    dibujarTicket();
+}
+
 // ---------- Opciones de la mesa o del pedido ----------
 
 /**
@@ -1200,6 +1255,10 @@ async function iniciar() {
         await cargarMenu();
         await cargarPedido();
         dibujarTicket();
+        // Pedido nuevo de mesa o para llevar: primero la ventana "Abrir pedido" (CU-02 pasos 3 a 5)
+        if (!pedidoActual && (tipo === 'LOCAL' || tipo === 'LLEVAR')) {
+            abrirVentanaPedido();
+        }
     } catch (e) {
         mostrarAviso(e.message, true);
     }

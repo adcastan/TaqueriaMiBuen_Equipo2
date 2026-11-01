@@ -42,6 +42,8 @@ Toda la logica de la pantalla esta en pedido.js.
                     </div>
                 </div>
                 <div class="title-actions">
+                    <%-- Reabre la ventana "Abrir pedido" para corregir personas, nombre o canal --%>
+                    <button class="btn secondary compact" id="btnCambiarDatos" type="button" onclick="abrirVentanaPedido()" hidden>Cambiar datos</button>
                     <a class="btn secondary compact" href="mesas.jsp">Volver a mesas</a>
                 </div>
             </div>
@@ -59,7 +61,7 @@ Toda la logica de la pantalla esta en pedido.js.
                         <small id="resumenPendientes">0 por enviar</small>
                     </div>
 
-                    <!-- Solo se muestran segun el tipo de pedido -->
+                    <!-- Aqui se guardan las personas y el nombre que se eligen en la ventana "Abrir pedido" -->
                     <div class="guest-count" id="bloquePersonas" hidden>
                         <label for="numeroPersonas">Comensales</label>
                         <input id="numeroPersonas" type="number" min="1" max="20" value="2">
@@ -68,11 +70,6 @@ Toda la logica de la pantalla esta en pedido.js.
                         <div class="field">
                             <label for="nombreCliente">Nombre del cliente (para llamarlo cuando este listo)</label>
                             <input id="nombreCliente" maxlength="100">
-                        </div>
-                        <%-- Por donde llego el pedido; DiDi Food y Uber Eats usan el precio de apps --%>
-                        <div class="field">
-                            <label>Por donde llego</label>
-                            <div class="custom-options" id="canales"></div>
                         </div>
                     </div>
                     <div class="warning-bar" id="bloqueEntrega" hidden></div>
