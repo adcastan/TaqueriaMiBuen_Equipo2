@@ -2,6 +2,8 @@ package IAccesoDatos;
 
 import Entidades.Caja;
 import Entidades.Corte;
+import Entidades.Usuario;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -23,8 +25,9 @@ public interface ICajaDAO {
     // Caja por su id o null.
     public Caja buscarPorId(int idCaja);
 
-    // Cierra la caja y guarda su corte en la misma transaccion.
-    public Corte cerrar(int idCaja, double totalVentas, double efectivoContado);
+    // Cierra la caja y guarda el corte con lo cobrado por metodo y el efectivo contado.
+    public Corte cerrar(int idCaja, Usuario quienCierra, BigDecimal ventasEfectivo, BigDecimal ventasTarjeta,
+            BigDecimal ventasTransferencia, BigDecimal efectivoContado);
 
     // Corte de una caja o null si todavia no se cierra.
     public Corte buscarCorte(int idCaja);

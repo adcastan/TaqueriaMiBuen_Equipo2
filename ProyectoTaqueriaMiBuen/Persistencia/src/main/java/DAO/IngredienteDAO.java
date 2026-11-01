@@ -2,13 +2,13 @@ package DAO;
 
 import Conexion.JPAUtil;
 import Entidades.Ingrediente;
-import Entidades.ProductoIngrediente;
 import IAccesoDatos.IIngredienteDAO;
 import jakarta.persistence.EntityManager;
 import java.util.List;
 
 /**
- * Acceso a datos de los ingredientes.
+ * Acceso a datos de los insumos (ingredientes). Solo es catalogo: ya no
+ * se llevan existencias ni recetas.
  * @author Equipo 2
  */
 public class IngredienteDAO implements IIngredienteDAO {
@@ -31,7 +31,7 @@ public class IngredienteDAO implements IIngredienteDAO {
         }
     }
 
-    // Guarda los cambios de un ingrediente (nombre, unidad, existencia, minimo)
+    // Guarda los cambios de un insumo (nombre, unidad, proveedor, activo)
     @Override
     public void actualizar(Ingrediente ingrediente) {
         EntityManager em = JPAUtil.obtenerEntityManager();
@@ -87,46 +87,12 @@ public class IngredienteDAO implements IIngredienteDAO {
         }
     }
 
-    // Ingredientes que ya llegaron o bajaron de su minimo: hay que comprar
+    // Insumos que siguen en uso (los dados de baja no salen)
     @Override
-    public List<Ingrediente> listarBajoStock() {
+    public List<Ingrediente> listarActivos() {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
-            return em.createQuery(
-                    "SELECT i FROM Ingrediente i WHERE i.existencia <= i.stockMinimo ORDER BY i.nombre", Ingrediente.class)
-                    .getResultList();
-        } finally {
-            em.close();
-        }
-    }
-
-    // Guarda cuanto de un ingrediente lleva un producto (la receta)
-    @Override
-    public void registrarReceta(ProductoIngrediente receta) {
-        EntityManager em = JPAUtil.obtenerEntityManager();
-        try {
-            em.getTransaction().begin();
-            em.persist(receta);
-            em.getTransaction().commit();
-        } catch (Exception e) {
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-            throw new RuntimeException("No se pudo registrar la receta: " + e.getMessage(), e);
-        } finally {
-            em.close();
-        }
-    }
-
-    // La receta de un producto: que ingredientes lleva y cuanto de cada uno
-    @Override
-    public List<ProductoIngrediente> listarReceta(int idProducto) {
-        EntityManager em = JPAUtil.obtenerEntityManager();
-        try {
-            return em.createQuery(
-                    "SELECT r FROM ProductoIngrediente r WHERE r.producto.idProducto = :idProducto "
-                    + "ORDER BY r.ingrediente.nombre", ProductoIngrediente.class)
-                    .setParameter("idProducto", idProducto)
+            return em.createQuery("SELECT i FROM Ingrediente i WHERE i.activo = true ORDER BY i.nombre", Ingrediente.class)
                     .getResultList();
         } finally {
             em.close();

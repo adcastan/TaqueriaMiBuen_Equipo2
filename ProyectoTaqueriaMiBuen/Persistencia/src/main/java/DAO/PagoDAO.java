@@ -5,10 +5,13 @@ import Entidades.Caja;
 import Entidades.Mesa;
 import Entidades.Pago;
 import Entidades.Pedido;
+import Entidades.Usuario;
 import Enums.EstadoPedido;
+import Enums.MetodoPago;
 import IAccesoDatos.IPagoDAO;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -39,7 +42,11 @@ public class PagoDAO implements IPagoDAO {
             }
             pedido.setEstado(EstadoPedido.PAGADO);
             pago.setPedido(pedido);
-            pago.setCaja(em.find(Caja.class, pago.getCaja().getIdCaja()));
+            // Lo de las apps no pasa por caja, por eso la caja puede venir vacia
+            if (pago.getCaja() != null) {
+                pago.setCaja(em.find(Caja.class, pago.getCaja().getIdCaja()));
+            }
+            pago.setUsuario(em.find(Usuario.class, pago.getUsuario().getIdUsuario()));
             em.persist(pago);
 
             // La mesa se recalcula con la misma regla de siempre: si le quedan
@@ -88,17 +95,18 @@ public class PagoDAO implements IPagoDAO {
         }
     }
 
-    // Cuanto se cobro en una caja con un metodo (efectivo o tarjeta); sirve para el corte
+    // Cuanto se cobro en una caja con un metodo (efectivo, tarjeta o transferencia); sirve para el corte
     @Override
-    public double totalPorMetodo(int idCaja, String metodo) {
+    public BigDecimal totalPorMetodo(int idCaja, MetodoPago metodo) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
-            Double total = em.createQuery(
-                    "SELECT SUM(p.monto) FROM Pago p WHERE p.caja.idCaja = :idCaja AND p.metodo = :metodo", Double.class)
+            BigDecimal total = em.createQuery(
+                    "SELECT SUM(p.monto) FROM Pago p WHERE p.caja.idCaja = :idCaja AND p.metodo = :metodo", BigDecimal.class)
                     .setParameter("idCaja", idCaja)
                     .setParameter("metodo", metodo)
                     .getSingleResult();
-            return total == null ? 0 : total;
+            // SUM regresa null si no hay pagos; en ese caso son cero pesos
+            return total == null ? new BigDecimal("0.00") : total;
         } finally {
             em.close();
         }

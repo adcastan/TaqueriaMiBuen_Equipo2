@@ -1,5 +1,7 @@
 package DTO;
 
+import java.math.BigDecimal;
+
 /**
  * Respuesta que regresa el servicio despues de cobrar un pedido.
  * La pantalla de cobro la usa para mostrar el ticket con el cambio.
@@ -10,12 +12,14 @@ public class ResultadoCobro {
 
     private int idPedido;
     private String folio;
-    private double total;
+    private BigDecimal total;
+    // EFECTIVO, TARJETA, TRANSFERENCIA o PLATAFORMA
     private String metodo;
-    private double montoRecibido;
-    private double cambio;
+    // Con cuanto pago el cliente (en tarjeta o transferencia es igual al total)
+    private BigDecimal montoRecibido;
+    private BigDecimal cambio;
 
-    public ResultadoCobro(int idPedido, String folio, double total, String metodo, double montoRecibido, double cambio) {
+    public ResultadoCobro(int idPedido, String folio, BigDecimal total, String metodo, BigDecimal montoRecibido, BigDecimal cambio) {
         this.idPedido = idPedido;
         this.folio = folio;
         this.total = total;
@@ -32,7 +36,7 @@ public class ResultadoCobro {
         return folio;
     }
 
-    public double getTotal() {
+    public BigDecimal getTotal() {
         return total;
     }
 
@@ -40,12 +44,11 @@ public class ResultadoCobro {
         return metodo;
     }
 
-    public double getMontoRecibido() {
+    public BigDecimal getMontoRecibido() {
         return montoRecibido;
     }
 
-    public double getCambio() {
+    public BigDecimal getCambio() {
         return cambio;
     }
 }
-

@@ -1,38 +1,39 @@
 package Servicios;
 
-import DAO.CompraDAO;
 import DAO.ProveedorDAO;
 import Entidades.Proveedor;
 import Exceptions.NegocioException;
-import IAccesoDatos.ICompraDAO;
 import IAccesoDatos.IProveedorDAO;
 import IServicios.IProveedorService;
 import java.util.List;
 
 /**
- * Servicio de Proveedor.
+ * Servicio de Proveedores (CU-06).
+ * Registra, modifica, da de baja y consulta proveedores. Un proveedor no se
+ * borra: si ya no se le compra se da de baja (activo = false) para no perder
+ * sus compras anteriores.
+ *
  * @author Equipo 2
  */
 public class ProveedorService implements IProveedorService {
 
     private final IProveedorDAO proveedorDAO = new ProveedorDAO();
-    private final ICompraDAO compraDAO = new CompraDAO();
 
     // Da de alta un proveedor revisando sus datos
     @Override
-    public Proveedor registrarProveedor(String nombre, String telefono, String correo) {
+    public Proveedor registrarProveedor(String nombre, String telefono, String correo, String queSurte) {
         validar(nombre, telefono, correo);
         if (proveedorDAO.buscarPorNombre(nombre.trim()) != null) {
             throw new NegocioException("Ya existe un proveedor con ese nombre");
         }
-        Proveedor proveedor = new Proveedor(nombre.trim(), vacioANulo(telefono), vacioANulo(correo));
+        Proveedor proveedor = new Proveedor(nombre.trim(), vacioANulo(telefono), vacioANulo(correo), vacioANulo(queSurte));
         proveedorDAO.registrar(proveedor);
         return proveedor;
     }
 
     // Cambia los datos de un proveedor
     @Override
-    public Proveedor actualizarProveedor(int idProveedor, String nombre, String telefono, String correo) {
+    public Proveedor actualizarProveedor(int idProveedor, String nombre, String telefono, String correo, String queSurte) {
         Proveedor proveedor = obtenerProveedor(idProveedor);
         validar(nombre, telefono, correo);
         Proveedor otro = proveedorDAO.buscarPorNombre(nombre.trim());
@@ -42,18 +43,17 @@ public class ProveedorService implements IProveedorService {
         proveedor.setNombre(nombre.trim());
         proveedor.setTelefono(vacioANulo(telefono));
         proveedor.setCorreo(vacioANulo(correo));
+        proveedor.setQueSurte(vacioANulo(queSurte));
         proveedorDAO.actualizar(proveedor);
         return proveedor;
     }
 
-    // Borra un proveedor solo si nunca se le ha comprado nada
+    // Baja logica: ya no sale como opcion para comprar, pero sus compras se conservan
     @Override
-    public void eliminarProveedor(int idProveedor) {
-        obtenerProveedor(idProveedor);
-        if (compraDAO.contarPorProveedor(idProveedor) > 0) {
-            throw new NegocioException("No se puede eliminar un proveedor que ya tiene compras");
-        }
-        proveedorDAO.eliminar(idProveedor);
+    public void darDeBajaProveedor(int idProveedor) {
+        Proveedor proveedor = obtenerProveedor(idProveedor);
+        proveedor.setActivo(false);
+        proveedorDAO.actualizar(proveedor);
     }
 
     // Todos los proveedores

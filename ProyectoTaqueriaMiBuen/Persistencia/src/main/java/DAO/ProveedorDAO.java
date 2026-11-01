@@ -7,7 +7,8 @@ import jakarta.persistence.EntityManager;
 import java.util.List;
 
 /**
- * Acceso a datos de los proveedores.
+ * Acceso a datos de los proveedores. No se borran: la baja es logica
+ * (activo = false) y se guarda con actualizar().
  * @author Equipo 2
  */
 public class ProveedorDAO implements IProveedorDAO {
@@ -48,29 +49,6 @@ public class ProveedorDAO implements IProveedorDAO {
         }
     }
 
-    /**
-     * Si el proveedor ya tiene compras la base de datos no deja borrarlo.
-     */
-    @Override
-    public void eliminar(int idProveedor) {
-        EntityManager em = JPAUtil.obtenerEntityManager();
-        try {
-            em.getTransaction().begin();
-            Proveedor proveedor = em.find(Proveedor.class, idProveedor);
-            if (proveedor != null) {
-                em.remove(proveedor);
-            }
-            em.getTransaction().commit();
-        } catch (Exception e) {
-            if (em.getTransaction().isActive()) {
-                em.getTransaction().rollback();
-            }
-            throw new RuntimeException("No se pudo eliminar el proveedor: " + e.getMessage(), e);
-        } finally {
-            em.close();
-        }
-    }
-
     // Busca un proveedor por su id; null si no existe
     @Override
     public Proveedor buscarPorId(int idProveedor) {
@@ -97,7 +75,7 @@ public class ProveedorDAO implements IProveedorDAO {
         }
     }
 
-    // Todos los proveedores ordenados por nombre
+    // Todos los proveedores ordenados por nombre (tambien los dados de baja)
     @Override
     public List<Proveedor> listar() {
         EntityManager em = JPAUtil.obtenerEntityManager();

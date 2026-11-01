@@ -17,16 +17,22 @@ import java.util.List;
  */
 public class CompraDAO implements ICompraDAO {
 
-    // Guarda una compra a proveedor junto con sus renglones
+    /**
+     * Guarda una compra junto con sus renglones. Ya no se suben existencias
+     * porque los insumos solo se llevan como catalogo (decision del cliente).
+     * Si no trae proveedor es una compra directa (mercado, super).
+     */
     @Override
     public void registrar(Compra compra) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
             em.getTransaction().begin();
-            compra.setProveedor(em.find(Proveedor.class, compra.getProveedor().getIdProveedor()));
+            if (compra.getProveedor() != null) {
+                compra.setProveedor(em.find(Proveedor.class, compra.getProveedor().getIdProveedor()));
+            }
             for (DetalleCompra detalle : compra.getDetalles()) {
+                // Se usa el insumo que esta en la base para no crear uno repetido
                 Ingrediente ingrediente = em.find(Ingrediente.class, detalle.getIngrediente().getIdIngrediente());
-                ingrediente.setExistencia(ingrediente.getExistencia() + detalle.getCantidad());
                 detalle.setIngrediente(ingrediente);
                 detalle.setCompra(compra);
             }
@@ -77,7 +83,7 @@ public class CompraDAO implements ICompraDAO {
         }
     }
 
-    // Cuantas compras tiene un proveedor; si tiene alguna ya no se puede borrar
+    // Cuantas compras tiene un proveedor
     @Override
     public long contarPorProveedor(int idProveedor) {
         EntityManager em = JPAUtil.obtenerEntityManager();

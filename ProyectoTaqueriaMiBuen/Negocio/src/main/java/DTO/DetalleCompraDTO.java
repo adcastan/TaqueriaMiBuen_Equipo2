@@ -1,20 +1,23 @@
 package DTO;
 
+import java.math.BigDecimal;
+
 /**
- * Un ingrediente de una compra: cuanto se compro y a que costo.
+ * Un insumo de una compra: cuanto se compro y a que costo por unidad.
  *
  * @author Equipo 2
  */
 public class DetalleCompraDTO {
 
     private int idIngrediente;
-    private double cantidad;
-    private double costoUnitario;
+    // Puede llevar decimales (ej. 2.5 kg)
+    private BigDecimal cantidad;
+    private BigDecimal costoUnitario;
 
     public DetalleCompraDTO() {
     }
 
-    public DetalleCompraDTO(int idIngrediente, double cantidad, double costoUnitario) {
+    public DetalleCompraDTO(int idIngrediente, BigDecimal cantidad, BigDecimal costoUnitario) {
         this.idIngrediente = idIngrediente;
         this.cantidad = cantidad;
         this.costoUnitario = costoUnitario;
@@ -28,19 +31,19 @@ public class DetalleCompraDTO {
         this.idIngrediente = idIngrediente;
     }
 
-    public double getCantidad() {
+    public BigDecimal getCantidad() {
         return cantidad;
     }
 
-    public void setCantidad(double cantidad) {
+    public void setCantidad(BigDecimal cantidad) {
         this.cantidad = cantidad;
     }
 
-    public double getCostoUnitario() {
+    public BigDecimal getCostoUnitario() {
         return costoUnitario;
     }
 
-    public void setCostoUnitario(double costoUnitario) {
+    public void setCostoUnitario(BigDecimal costoUnitario) {
         this.costoUnitario = costoUnitario;
     }
 }

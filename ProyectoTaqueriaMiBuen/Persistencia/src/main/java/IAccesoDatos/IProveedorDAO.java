@@ -18,8 +18,6 @@ public interface IProveedorDAO {
     // Guarda los cambios de un proveedor.
     public void actualizar(Proveedor proveedor);
 
-    // Borra un proveedor que no tenga compras.
-    public void eliminar(int idProveedor);
 
     // Proveedor por su id o null.
     public Proveedor buscarPorId(int idProveedor);

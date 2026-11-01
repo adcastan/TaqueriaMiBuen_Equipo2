@@ -13,13 +13,13 @@ import java.util.List;
 public interface IProveedorService {
 
     // Registra un proveedor nuevo.
-    public Proveedor registrarProveedor(String nombre, String telefono, String correo);
+    public Proveedor registrarProveedor(String nombre, String telefono, String correo, String queSurte);
 
     // Cambia los datos de un proveedor.
-    public Proveedor actualizarProveedor(int idProveedor, String nombre, String telefono, String correo);
+    public Proveedor actualizarProveedor(int idProveedor, String nombre, String telefono, String correo, String queSurte);
 
-    // Elimina un proveedor que no tenga compras.
-    public void eliminarProveedor(int idProveedor);
+    // Da de baja un proveedor (baja logica, no se borra).
+    public void darDeBajaProveedor(int idProveedor);
 
     // Todos los proveedores.
     public List<Proveedor> obtenerProveedores();

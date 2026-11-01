@@ -3,12 +3,11 @@ package IServicios;
 import DTO.CompraDTO;
 import Entidades.Compra;
 import Entidades.Ingrediente;
-import Entidades.ProductoIngrediente;
 import Entidades.Usuario;
 import java.util.List;
 
 /**
- * Servicio de insumos y compras.
+ * Servicio de insumos (solo catalogo) y compras.
  * La implementa InsumoService.
  * Las demas capas usan esta interfaz y no la clase directamente.
  *
@@ -16,27 +15,18 @@ import java.util.List;
  */
 public interface IInsumoService {
 
-    // Registra un ingrediente nuevo en el inventario.
-    public Ingrediente registrarIngrediente(String nombre, String unidad, double existencia, double stockMinimo);
+    // Registra un insumo nuevo en el catalogo (proveedor habitual opcional).
+    public Ingrediente registrarIngrediente(String nombre, String unidad, Integer idProveedor);
 
-    // Cambia nombre, unidad o stock minimo de un ingrediente.
-    public Ingrediente actualizarIngrediente(int idIngrediente, String nombre, String unidad, double stockMinimo);
+    // Cambia nombre, unidad o proveedor habitual de un insumo.
+    public Ingrediente actualizarIngrediente(int idIngrediente, String nombre, String unidad, Integer idProveedor);
 
-    // Corrige la existencia despues de contar el inventario.
-    public Ingrediente ajustarExistencia(int idIngrediente, double existencia);
+    // Da de baja un insumo (baja logica, no se borra).
+    public void darDeBajaIngrediente(int idIngrediente);
 
-    // Todos los ingredientes.
+    // Insumos que siguen en uso.
     public List<Ingrediente> obtenerIngredientes();
 
-    // Ingredientes que llegaron a su stock minimo.
-    public List<Ingrediente> obtenerBajoStock();
-
-    // Registra una compra a un proveedor y sube la existencia de lo comprado.
+    // Registra una compra de insumos, de contado o a credito.
     public Compra registrarCompra(CompraDTO dto, Usuario usuario);
-
-    // Indica cuanto de un ingrediente lleva un producto.
-    public ProductoIngrediente asignarReceta(int idProducto, int idIngrediente, double cantidad);
-
-    // Ingredientes que lleva un producto.
-    public List<ProductoIngrediente> obtenerReceta(int idProducto);
 }

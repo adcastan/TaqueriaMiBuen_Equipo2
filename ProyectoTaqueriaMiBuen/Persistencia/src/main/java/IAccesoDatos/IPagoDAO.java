@@ -1,6 +1,8 @@
 package IAccesoDatos;
 
 import Entidades.Pago;
+import Enums.MetodoPago;
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -21,7 +23,7 @@ public interface IPagoDAO {
     // Pagos recibidos en una caja.
     public List<Pago> listarPorCaja(int idCaja);
 
-    // Suma de los pagos de una caja con un metodo (EFECTIVO o TARJETA).
-    public double totalPorMetodo(int idCaja, String metodo);
+    // Suma de los pagos de una caja con un metodo (EFECTIVO, TARJETA o TRANSFERENCIA).
+    public BigDecimal totalPorMetodo(int idCaja, MetodoPago metodo);
 }
 

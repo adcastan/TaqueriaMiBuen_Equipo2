@@ -3,6 +3,8 @@ package DAO;
 import Conexion.JPAUtil;
 import Entidades.Caja;
 import Entidades.Corte;
+import Entidades.Usuario;
+import java.math.BigDecimal;
 import IAccesoDatos.ICajaDAO;
 import jakarta.persistence.EntityManager;
 import java.time.LocalDateTime;
@@ -60,16 +62,19 @@ public class CajaDAO implements ICajaDAO {
     }
 
     /**
-     * Calcula el efectivo esperado y regresa el corte. 
-     * Aqui solo se guardan los dos cambios juntos.
+     * Cierra la caja y guarda su corte en la misma transaccion: o se guardan
+     * los dos cambios o ninguno. La cuenta del efectivo esperado la hace
+     * Caja.cerrar().
      */
     @Override
-    public Corte cerrar(int idCaja, double totalVentas, double efectivoContado) {
+    public Corte cerrar(int idCaja, Usuario quienCierra, BigDecimal ventasEfectivo, BigDecimal ventasTarjeta,
+            BigDecimal ventasTransferencia, BigDecimal efectivoContado) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
             em.getTransaction().begin();
             Caja caja = em.find(Caja.class, idCaja);
-            Corte corte = caja.cerrar(totalVentas, efectivoContado);
+            Usuario usuario = em.find(Usuario.class, quienCierra.getIdUsuario());
+            Corte corte = caja.cerrar(usuario, ventasEfectivo, ventasTarjeta, ventasTransferencia, efectivoContado);
             em.persist(corte);
             em.getTransaction().commit();
             return corte;

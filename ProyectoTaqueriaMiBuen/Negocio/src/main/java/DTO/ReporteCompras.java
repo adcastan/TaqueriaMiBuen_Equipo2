@@ -1,6 +1,7 @@
 package DTO;
 
 import Entidades.Compra;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -14,7 +15,7 @@ public class ReporteCompras {
     private LocalDateTime fechaInicio;
     private LocalDateTime fechaFin;
     private int numeroCompras;
-    private double totalComprado;
+    private BigDecimal totalComprado = BigDecimal.ZERO;
     private List<Compra> compras;
 
     public ReporteCompras(LocalDateTime fechaInicio, LocalDateTime fechaFin, List<Compra> compras) {
@@ -23,7 +24,7 @@ public class ReporteCompras {
         this.compras = compras;
         this.numeroCompras = compras.size();
         for (Compra compra : compras) {
-            totalComprado += compra.getTotal();
+            totalComprado = totalComprado.add(compra.getTotal());
         }
     }
 
@@ -39,7 +40,7 @@ public class ReporteCompras {
         return numeroCompras;
     }
 
-    public double getTotalComprado() {
+    public BigDecimal getTotalComprado() {
         return totalComprado;
     }
 

@@ -13,7 +13,7 @@ import java.util.List;
  */
 public interface ICompraDAO {
 
-    // Guarda la compra con sus detalles y suma lo comprado a la existencia de cada ingrediente.
+    // Guarda la compra con sus detalles (proveedor opcional: compra directa).
     public void registrar(Compra compra);
 
     // Compra con sus detalles o null.
@@ -22,6 +22,6 @@ public interface ICompraDAO {
     // Compras hechas entre dos fechas, con sus detalles.
     public List<Compra> listarPorPeriodo(LocalDateTime inicio, LocalDateTime fin);
 
-    // Cuantas compras tiene un proveedor (para saber si se puede eliminar).
+    // Cuantas compras tiene un proveedor.
     public long contarPorProveedor(int idProveedor);
 }

@@ -1,11 +1,10 @@
 package IAccesoDatos;
 
 import Entidades.Ingrediente;
-import Entidades.ProductoIngrediente;
 import java.util.List;
 
 /**
- * Operaciones de base de datos de los ingredientes (insumos) y las recetas.
+ * Operaciones de base de datos de los ingredientes (insumos). Solo catalogo.
  * La implementa IngredienteDAO.
  * Las demas capas usan esta interfaz y no la clase directamente.
  *
@@ -28,12 +27,6 @@ public interface IIngredienteDAO {
     // Todos los ingredientes en orden alfabetico.
     public List<Ingrediente> listar();
 
-    // Ingredientes con existencia igual o menor a su stock minimo.
-    public List<Ingrediente> listarBajoStock();
-
-    // Guarda cuanto de un ingrediente usa un producto (receta).
-    public void registrarReceta(ProductoIngrediente receta);
-
-    // Ingredientes que usa un producto.
-    public List<ProductoIngrediente> listarReceta(int idProducto);
+    // Insumos que siguen en uso, en orden alfabetico.
+    public List<Ingrediente> listarActivos();
 }
