@@ -30,6 +30,7 @@ Solo pueden entrar COCINERO y ADMINISTRADOR (lo revisa FiltroSeguridad).
                 <div class="title-actions">
                     <span class="pill amber" id="totalPendientes">0 pendientes</span>
                     <span class="pill green" id="ultimaActualizacion">Sin actualizar</span>
+                    <button class="btn danger compact" type="button" onclick="abrirAgotados()">SE ACABO...</button>
                 </div>
             </div>
 

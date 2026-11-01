@@ -9,6 +9,8 @@
 const intervaloRefresco = 3000;
 // Para no encimar consultas si la red anda lenta
 let cargando = false;
+// Ultimas mesas que llegaron, para saber a que mesa principal ir al tocar una unida
+let mesasActuales = [];
 
 /**
  * Pide las mesas a MesaServlet (GET /api/mesas) y las dibuja.
@@ -45,18 +47,22 @@ function dibujarMesas(mesas) {
         OCUPADA: {clase: 'occupied', texto: 'OCUPADA'},
         PENDIENTE_PAGO: {clase: 'pending', texto: 'POR COBRAR'}
     };
+    mesasActuales = mesas;
     contenedor.innerHTML = mesas.map(mesa => {
         const vista = vistas[mesa.estado] || vistas.OCUPADA;
         const numero = String(mesa.numero).padStart(2, '0');
         let detalle = 'TOCAR PARA ABRIR';
-        if (mesa.estado !== 'DISPONIBLE') {
-            detalle = 'CUENTA ' + dinero(mesa.total);
+        if (mesa.juntoAMesa) {
+            // Mesa pegada a otra: se ve del mismo color con la leyenda (RN-13)
+            detalle = 'JUNTO A MESA ' + mesa.juntoAMesa;
+        } else if (mesa.estado !== 'DISPONIBLE' && mesa.total !== undefined) {
+            detalle = 'CUENTA ' + dinero(mesa.total) + (mesa.cuentas > 1 ? ' - ' + mesa.cuentas + ' CUENTAS' : '');
         }
-        return '<button class="table-tile ' + vista.clase + '" onclick="seleccionarMesa(' + mesa.idMesa + ')">'
+        return '<button class="table-tile ' + vista.clase + (mesa.juntoAMesa ? ' joined' : '') + '" onclick="seleccionarMesa(' + mesa.idMesa + ')">'
                 + '<span class="table-number">' + numero + '</span>'
                 + '<strong>MESA ' + mesa.numero + '</strong>'
                 + '<span class="table-state">' + vista.texto + '</span>'
-                + '<small>' + detalle + ' - ' + mesa.capacidad + ' PERS.</small>'
+                + '<small>' + detalle + (mesa.juntoAMesa ? '' : ' - ' + mesa.capacidad + ' PERS.') + '</small>'
                 + '</button>';
     }).join('');
 }
@@ -82,7 +88,29 @@ function dibujarOtrosPedidos(pedidos) {
  * Ocupada: la toma de pedido carga el pedido activo de la mesa.
  */
 function seleccionarMesa(idMesa) {
+    const mesa = mesasActuales.find(m => m.idMesa === idMesa);
+    // Una mesa unida no tiene cuenta propia: se ofrece ir a la principal o separarla
+    if (mesa && mesa.juntoAMesa) {
+        abrirModal('<div class="modal-basic"><h2>MESA ' + mesa.numero + '</h2>'
+                + '<p>Esta mesa esta junto a la <strong>mesa ' + mesa.juntoAMesa + '</strong>. La cuenta esta en esa mesa.</p>'
+                + '<button class="btn primary full" onclick="window.location.href=\'tomarPedido.jsp?mesa=' + mesa.idMesaPrincipal + '\'">VER CUENTA DE LA MESA ' + mesa.juntoAMesa + '</button>'
+                + '<button class="btn secondary full" onclick="separarMesa(' + mesa.idMesa + ')">SEPARAR MESA ' + mesa.numero + '</button>'
+                + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
+        return;
+    }
     window.location.href = 'tomarPedido.jsp?mesa=' + idMesa;
+}
+
+// Despega una mesa de su grupo; queda libre y las cuentas siguen en la principal
+async function separarMesa(idMesa) {
+    try {
+        const mesas = await api('api/mesas/' + idMesa + '/separar', 'POST', {});
+        cerrarModal();
+        dibujarMesas(mesas);
+        mostrarAviso('La mesa quedo libre');
+    } catch (e) {
+        mostrarAviso(e.message, true);
+    }
 }
 
 // Abre la toma de pedido de un pedido que ya existe

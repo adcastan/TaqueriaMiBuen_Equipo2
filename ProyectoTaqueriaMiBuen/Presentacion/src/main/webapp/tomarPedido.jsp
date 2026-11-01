@@ -69,6 +69,11 @@ Toda la logica de la pantalla esta en pedido.js.
                             <label for="nombreCliente">Nombre del cliente (para llamarlo cuando este listo)</label>
                             <input id="nombreCliente" maxlength="100">
                         </div>
+                        <%-- Por donde llego el pedido; DiDi Food y Uber Eats usan el precio de apps --%>
+                        <div class="field">
+                            <label>Por donde llego</label>
+                            <div class="custom-options" id="canales"></div>
+                        </div>
                     </div>
                     <div class="warning-bar" id="bloqueEntrega" hidden></div>
 

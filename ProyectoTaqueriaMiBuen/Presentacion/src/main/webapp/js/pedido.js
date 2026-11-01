@@ -13,7 +13,13 @@
  * Equipo 2
  */
 
-const COSTO_ENVIO = 25.00;
+// Los pedidos de DiDi Food y Uber Eats se cobran con el precio de apps (RN-11)
+const CANALES_APP = ['DIDI_FOOD', 'UBER_EATS'];
+// Nombres bonitos de cada canal para la pantalla
+const NOMBRES_CANAL = {MESA: 'Mesa', MOSTRADOR: 'Mostrador', TELEFONO: 'Telefono', WHATSAPP: 'WhatsApp',
+    DIDI_FOOD: 'DiDi Food', UBER_EATS: 'Uber Eats'};
+// Lo de kilo se ajusta de cuarto en cuarto con los botones + y -
+const PASO_KILO = 0.25;
 // Cada cuanto se vuelve a pedir el pedido para ver como va la cocina
 const INTERVALO_REFRESCO = 3000;
 const parametros = new URLSearchParams(window.location.search);
@@ -29,6 +35,8 @@ let menu = [];                 // categorias con productos (GET /api/menu)
 let pedidoActual = null;       // pedido que ya esta en la BD (si existe)
 let detalles = [];             // detalles temporales que aun no se envian a cocina
 let datosEntrega = null;       // solo para domicilio
+let canal = 'MESA';            // por donde llego el pedido; decide el precio
+let cuentasMesa = [];          // cuentas vivas de la mesa (si hay cuentas separadas)
 let categoriaActiva = 'TODAS';
 let textoBusqueda = '';
 
@@ -77,6 +85,82 @@ async function cargarPedido() {
             window.location.href = 'datosEntrega.jsp';
         }
     }
+    // El canal: el del pedido si ya existe; si es nuevo, el que toca segun el tipo
+    if (pedidoActual) {
+        canal = pedidoActual.canal;
+    } else if (tipo === 'LLEVAR') {
+        canal = parametros.get('canal') || 'MOSTRADOR';
+    } else if (tipo === 'DOMICILIO') {
+        canal = (datosEntrega && datosEntrega.canal) || 'TELEFONO';
+    } else {
+        canal = 'MESA';
+    }
+    await cargarCuentasMesa();
+}
+
+// Trae las cuentas vivas de la mesa para poder brincar entre cuentas separadas (RN-14)
+async function cargarCuentasMesa() {
+    cuentasMesa = [];
+    if (tipo === 'LOCAL' && idMesa !== null) {
+        try {
+            cuentasMesa = await api('api/pedidos?cuentasMesa=' + idMesa);
+        } catch (e) {
+            cuentasMesa = [];
+        }
+    }
+}
+
+// true si el pedido viene de DiDi Food o Uber Eats
+function esDeApp() {
+    return CANALES_APP.includes(canal);
+}
+
+// Precio que se le cobra al cliente: el de apps si el pedido viene de una app
+function precioDe(producto) {
+    return esDeApp() ? Number(producto.precioApps) : Number(producto.precio);
+}
+
+// true si el producto se vende por kilo (acepta 0.25, 0.5, etc.)
+function esKilo(producto) {
+    return producto && producto.unidadVenta === 'KILO';
+}
+
+// "3" para piezas y "0.5 kg" para lo de kilo
+function textoCantidad(cantidad, unidad) {
+    return unidad === 'KILO' ? Number(cantidad) + ' kg' : String(Number(cantidad));
+}
+
+// Costo de envio del domicilio: el que ya tiene el pedido o el que se capturo
+function costoEnvio() {
+    if (tipo !== 'DOMICILIO') return 0;
+    if (pedidoActual) return Number(pedidoActual.costoEnvio || 0);
+    return Number((datosEntrega && datosEntrega.costoEnvio) || 0);
+}
+
+/**
+ * Para llevar: el cajero indica por donde llego. Si cambia a una app, lo que
+ * ya estaba capturado se vuelve a calcular con el precio de apps.
+ */
+function elegirCanal(nuevo) {
+    canal = nuevo;
+    for (const d of detalles) {
+        d.precio = precioDe(buscarProducto(d.idProducto));
+    }
+    claveEnvioPendiente = null;
+    dibujarCanales();
+    dibujarProductos();
+    dibujarTicket();
+}
+
+// Pinta los botones de canal (solo para un pedido para llevar nuevo)
+function dibujarCanales() {
+    const contenedor = document.getElementById('canales');
+    if (!contenedor) return;
+    const opciones = ['MOSTRADOR', 'TELEFONO', 'WHATSAPP', 'DIDI_FOOD', 'UBER_EATS'];
+    contenedor.innerHTML = opciones.map(c =>
+        '<button type="button" class="custom-option ' + (canal === c ? 'active' : '') + '" onclick="elegirCanal(\'' + c + '\')">'
+        + NOMBRES_CANAL[c] + '</button>').join('')
+        + (esDeApp() ? '<small class="muted">Se usa el precio de apps.</small>' : '');
 }
 
 /**
@@ -150,12 +234,13 @@ function dibujarProductos() {
     // Los agotados se muestran pero no se pueden elegir
     contenedor.innerHTML = productos.map(p =>
         '<button class="product-card" ' + (p.disponible ? '' : 'disabled') + ' onclick="abrirPersonalizar(' + p.idProducto + ')">'
-                + '<span class="product-badge">' + (p.disponible ? escapar(p.categoria) : 'AGOTADO') + '</span>'
-                + '<strong class="product-price">' + dinero(p.precio) + '</strong>'
+                + '<span class="product-badge">' + (p.disponible ? escapar(p.categoria) : 'SE ACABO') + '</span>'
+                + '<strong class="product-price">' + dinero(precioDe(p)) + (esKilo(p) ? ' / kg' : '') + '</strong>'
                 + '<span class="product-body">'
                 + '<img class="product-photo" src="' + imagenProducto(p.categoria) + '" alt="" width="65" height="65">'
                 + '<strong class="product-name">' + escapar(p.nombre.toUpperCase()) + '</strong>'
-                + '<span class="product-description">' + escapar(p.descripcion || '') + '</span>'
+                + '<span class="product-description">' + escapar(p.piezas && p.piezas.length
+                        ? 'Incluye: ' + p.piezas.join(' + ') : (p.descripcion || '')) + '</span>'
                 + '</span>'
                 + '<span class="product-add">' + (p.disponible ? 'TOCAR PARA AGREGAR' : 'NO DISPONIBLE') + '</span>'
                 + '</button>'
@@ -171,10 +256,12 @@ function abrirPersonalizar(idProducto) {
         return;
     }
     productoElegido = buscarProducto(idProducto);
-    cantidadElegida = 1;
+    // Lo de kilo empieza en medio kilo; lo de pieza en 1
+    cantidadElegida = esKilo(productoElegido) ? 0.5 : 1;
     extrasElegidos = [];
-    // Flujo 2.2.2 paso 6: lo que no tiene nada que personalizar (un refresco) entra directo
-    if (productoElegido.extras.length === 0 && !esProductoConNota(productoElegido)) {
+    // Flujo 2.2.2 paso 6: lo que no tiene nada que personalizar (un refresco) entra directo.
+    // Lo de kilo siempre abre la ventana porque hay que decir cuanto
+    if (productoElegido.extras.length === 0 && !esProductoConNota(productoElegido) && !esKilo(productoElegido)) {
         agregarDetalle(productoElegido.idProducto, 1);
         dibujarTicket();
         bajarAlFinalDelTicket();
@@ -205,16 +292,11 @@ function dibujarPersonalizar() {
     abrirModal(
             '<header class="modal-header">'
             + '<span class="title-icon"><img src="' + imagenProducto(p.categoria) + '" alt="" width="30" height="30"></span>'
-            + '<div><h2>' + escapar(p.nombre.toUpperCase()) + '</h2><p><strong>' + dinero(p.precio) + ' c/u</strong></p></div>'
+            + '<div><h2>' + escapar(p.nombre.toUpperCase()) + '</h2><p><strong>' + dinero(precioDe(p)) + (esKilo(p) ? ' el kilo' : ' c/u') + '</strong></p></div>'
             + '<button class="icon-btn" onclick="cerrarModal()" aria-label="Cerrar">X</button>'
             + '</header>'
             + '<div class="modal-body">'
-            + '<div class="quantity-panel"><div><strong>CANTIDAD</strong><small>Cuantas piezas se preparan</small></div>'
-            + '<div class="large-qty">'
-            + '<button onclick="cambiarCantidadElegida(-1)" ' + (cantidadElegida <= 1 ? 'disabled' : '') + '>-</button>'
-            + '<span>' + cantidadElegida + '<small>PIEZAS</small></span>'
-            + '<button onclick="cambiarCantidadElegida(1)" ' + (cantidadElegida >= 99 ? 'disabled' : '') + '>+</button>'
-            + '</div></div>'
+            + (esKilo(p) ? panelKilos() : panelPiezas())
             + '<section class="modal-section"><div class="modal-section-title"><strong>INGREDIENTES EXTRA</strong>'
             + '<small>Toca para agregar o quitar</small></div>' + extrasHtml + '</section>'
             + '<div class="field"><label for="notaCocina">Nota para cocina (opcional)</label>'
@@ -227,9 +309,41 @@ function dibujarPersonalizar() {
             + '</footer>');
 }
 
+// Cantidad por piezas: botones grandes - y + (de 1 a 99)
+function panelPiezas() {
+    return '<div class="quantity-panel"><div><strong>CANTIDAD</strong><small>Cuantas piezas se preparan</small></div>'
+            + '<div class="large-qty">'
+            + '<button onclick="cambiarCantidadElegida(-1)" ' + (cantidadElegida <= 1 ? 'disabled' : '') + '>-</button>'
+            + '<span>' + cantidadElegida + '<small>PIEZAS</small></span>'
+            + '<button onclick="cambiarCantidadElegida(1)" ' + (cantidadElegida >= 99 ? 'disabled' : '') + '>+</button>'
+            + '</div></div>';
+}
+
+// Cantidad por kilo: botones rapidos de 1/4, 1/2 y 1 kg, y un campo para otra cantidad
+function panelKilos() {
+    const rapidos = [[0.25, '1/4 KG'], [0.5, '1/2 KG'], [1, '1 KG']];
+    return '<div class="quantity-panel"><div><strong>CANTIDAD</strong><small>En kilos</small></div>'
+            + '<div class="custom-options">' + rapidos.map(r =>
+                '<button type="button" class="custom-option ' + (cantidadElegida === r[0] ? 'active' : '') + '" onclick="elegirKilos(' + r[0] + ')">' + r[1] + '</button>'
+            ).join('') + '</div>'
+            + '<div class="field"><label for="otrosKilos">Otra cantidad (kg)</label>'
+            + '<input id="otrosKilos" type="number" inputmode="decimal" min="0.05" max="20" step="0.05" value="' + cantidadElegida + '" '
+            + 'onchange="elegirKilos(Number(this.value))"></div></div>';
+}
+
 // Botones + y - de la ventana; la cantidad se queda entre 1 y 99
 function cambiarCantidadElegida(cambio) {
     cantidadElegida = Math.max(1, Math.min(99, cantidadElegida + cambio));
+    dibujarPersonalizar();
+}
+
+// Elige los kilos (se redondea a gramos para no arrastrar decimales raros)
+function elegirKilos(kilos) {
+    if (!(kilos > 0) || kilos > 20) {
+        mostrarAviso('Escribe una cantidad de 0.05 a 20 kg', true);
+        return;
+    }
+    cantidadElegida = Math.round(kilos * 1000) / 1000;
     dibujarPersonalizar();
 }
 
@@ -245,7 +359,7 @@ function alternarExtra(idExtra) {
 
 // (precio unitario + extras) x cantidad, la misma formula que usa Java
 function importeElegido() {
-    let precio = productoElegido.precio;
+    let precio = precioDe(productoElegido);
     for (const extra of productoElegido.extras) {
         if (extrasElegidos.includes(extra.idExtra))
             precio += extra.precio;
@@ -256,6 +370,11 @@ function importeElegido() {
 // Pasa lo que se eligio en la ventana a la lista temporal del pedido
 function confirmarProducto() {
     const nota = document.getElementById('notaCocina').value.trim();
+    // Si escribieron los kilos y no le dieron Enter, se toma lo que dice el campo
+    const campoKilos = document.getElementById('otrosKilos');
+    if (campoKilos && Number(campoKilos.value) > 0) {
+        cantidadElegida = Math.round(Number(campoKilos.value) * 1000) / 1000;
+    }
     const i = agregarDetalle(productoElegido.idProducto, cantidadElegida);
     for (const idExtra of extrasElegidos) {
         agregarExtra(i, idExtra);
@@ -264,7 +383,7 @@ function confirmarProducto() {
     cerrarModal();
     dibujarTicket();
     bajarAlFinalDelTicket();
-    mostrarAviso(cantidadElegida + ' x ' + productoElegido.nombre + ' agregado');
+    mostrarAviso(textoCantidad(cantidadElegida, productoElegido.unidadVenta) + ' x ' + productoElegido.nombre + ' agregado');
 }
 
 // El ticket tiene su propia barrita para desplazarse; al agregar algo se baja
@@ -286,7 +405,8 @@ function agregarDetalle(idProducto, cantidad) {
     detalles.push({
         idProducto: producto.idProducto,
         nombre: producto.nombre,
-        precio: producto.precio,
+        precio: precioDe(producto),
+        unidad: producto.unidadVenta,
         cantidad: cantidad,
         notaCocina: '',
         extras: [],
@@ -311,7 +431,9 @@ function agregarExtra(i, idExtra) {
 
 // Botones + y - de un renglon nuevo; si llega a cero se quita
 function cambiarCantidad(i, cambio) {
-    const nueva = detalles[i].cantidad + cambio;
+    // Lo de kilo sube y baja de cuarto en cuarto
+    const paso = detalles[i].unidad === 'KILO' ? PASO_KILO : 1;
+    const nueva = Math.round((detalles[i].cantidad + cambio * paso) * 1000) / 1000;
     if (nueva <= 0) {
         quitarDetalle(i);
         return;
@@ -338,8 +460,7 @@ function importeDetalle(d) {
 function calcularTotal() {
     const enviado = pedidoActual ? pedidoActual.subtotal : 0;
     const nuevo = detalles.reduce((suma, d) => suma + importeDetalle(d), 0);
-    const envio = tipo === 'DOMICILIO' ? COSTO_ENVIO : 0;
-    return enviado + nuevo + envio;
+    return enviado + nuevo + costoEnvio();
 }
 
 // ---------- Ticket ----------
@@ -362,7 +483,8 @@ function textoDestino() {
 
 // Pinta el titulo, el folio y los campos que pide cada tipo de pedido
 function dibujarEncabezado() {
-    const destino = textoDestino();
+    // Si no es de mesa se agrega por donde llego (ej. "Para llevar: Ana - DiDi Food")
+    const destino = textoDestino() + (canal !== 'MESA' ? ' - ' + NOMBRES_CANAL[canal] : '');
     document.getElementById('titulo').textContent = pedidoActual ? destino : 'Nuevo pedido: ' + destino;
     let subtitulo = cuentaSeparada ? 'Cuenta separada' : 'Nuevo pedido';
     if (pedidoActual) {
@@ -378,13 +500,19 @@ function dibujarEncabezado() {
     // Campos extra segun el tipo, solo cuando el pedido es nuevo
     document.getElementById('bloquePersonas').hidden = !(tipo === 'LOCAL' && !pedidoActual);
     document.getElementById('bloqueCliente').hidden = !(tipo === 'LLEVAR' && !pedidoActual);
+    if (tipo === 'LLEVAR' && !pedidoActual) {
+        dibujarCanales();
+    }
     const entrega = pedidoActual && tipo === 'DOMICILIO' ? pedidoActual : datosEntrega;
     const bloqueEntrega = document.getElementById('bloqueEntrega');
     bloqueEntrega.hidden = tipo !== 'DOMICILIO' || !entrega;
     if (entrega) {
         bloqueEntrega.innerHTML = '<strong>Entregar a:</strong> ' + escapar(entrega.nombreCliente)
                 + ' - Tel. ' + escapar(entrega.telefono) + '<br>' + escapar(entrega.direccion)
-                + (entrega.referencias ? ' (' + escapar(entrega.referencias) + ')' : '');
+                + (entrega.referencias ? ' (' + escapar(entrega.referencias) + ')' : '')
+                + '<br>Envio: ' + dinero(costoEnvio())
+                + ' - Lo lleva: ' + (entrega.tipoRepartidor === 'EXTERNO' ? 'servicio externo' : 'empleado')
+                + (entrega.repartidor ? ' (' + escapar(entrega.repartidor) + ')' : '');
     }
 }
 
@@ -404,16 +532,16 @@ function lineaEnviada(d) {
     if (pedidoAbierto() && d.estado === 'PENDIENTE') {
         // Flujo 2.2.4: lo que sigue en cola se puede cambiar o quitar
         botones = '<div class="qty-control">'
-                + '<button onclick="cambiarCantidadEnviada(' + d.idDetalle + ', ' + (d.cantidad - 1) + ')" aria-label="Uno menos">-</button>'
-                + '<span>' + d.cantidad + '</span>'
-                + '<button onclick="cambiarCantidadEnviada(' + d.idDetalle + ', ' + (d.cantidad + 1) + ')" aria-label="Uno mas">+</button>'
+                + '<button onclick="cambiarCantidadEnviada(' + d.idDetalle + ', ' + (Number(d.cantidad) - pasoDe(d.unidadVenta)) + ')" aria-label="Uno menos">-</button>'
+                + '<span>' + textoCantidad(d.cantidad, d.unidadVenta) + '</span>'
+                + '<button onclick="cambiarCantidadEnviada(' + d.idDetalle + ', ' + (Number(d.cantidad) + pasoDe(d.unidadVenta)) + ')" aria-label="Uno mas">+</button>'
                 + '<button class="remove" onclick="confirmarQuitarEnviado(' + d.idDetalle + ')" aria-label="Quitar">x</button></div>';
     } else if (pedidoAbierto() && (d.estado === 'EN_PREPARACION' || d.estado === 'LISTO')) {
         // Flujo 2.2.10: ya se esta preparando; solo un cajero lo quita
         botones = '<button class="btn outline compact" onclick="abrirCancelarProducto(' + d.idDetalle + ')">CANCELAR</button>';
     }
     return '<div class="ticket-line' + (d.estado === 'CANCELADO' ? ' cancelled' : '') + '">'
-            + '<div class="ticket-line-top"><strong>' + d.cantidad + 'x ' + escapar(d.producto.toUpperCase()) + '</strong>' + etiqueta + '</div>'
+            + '<div class="ticket-line-top"><strong>' + textoCantidad(d.cantidad, d.unidadVenta) + ' x ' + escapar(d.producto.toUpperCase()) + '</strong>' + etiqueta + '</div>'
             + (descripcion ? '<small>' + escapar(descripcion) + '</small>' : '')
             + '<div class="ticket-line-top"><strong>' + dinero(d.importe) + '</strong>' + botones + '</div>'
             + '</div>';
@@ -428,11 +556,11 @@ function lineaNueva(d, i) {
             ? '<span class="pill red">NO DISPONIBLE</span>'
             : '<span class="pill amber">NUEVO</span>';
     const botones = '<div class="qty-control">'
-            + '<button onclick="cambiarCantidad(' + i + ', -1)" aria-label="Uno menos">-</button><span>' + d.cantidad + '</span>'
+            + '<button onclick="cambiarCantidad(' + i + ', -1)" aria-label="Uno menos">-</button><span>' + textoCantidad(d.cantidad, d.unidad) + '</span>'
             + '<button onclick="cambiarCantidad(' + i + ', 1)" aria-label="Uno mas">+</button>'
             + '<button class="remove" onclick="quitarDetalle(' + i + ')" aria-label="Quitar">x</button></div>';
     return '<div class="ticket-line">'
-            + '<div class="ticket-line-top"><strong>' + d.cantidad + 'x ' + escapar(d.nombre.toUpperCase()) + '</strong>' + etiqueta + '</div>'
+            + '<div class="ticket-line-top"><strong>' + textoCantidad(d.cantidad, d.unidad) + ' x ' + escapar(d.nombre.toUpperCase()) + '</strong>' + etiqueta + '</div>'
             + (descripcion ? '<small>' + escapar(descripcion) + '</small>' : '')
             + '<div class="ticket-line-top"><strong>' + dinero(importeDetalle(d)) + '</strong>' + botones + '</div>'
             + '</div>';
@@ -464,10 +592,12 @@ function dibujarTicket() {
             || '<div class="empty"><strong>El pedido empieza aqui</strong>Toca un producto del menu para agregarlo.</div>';
     lista.scrollTop = posicion;
 
-    const piezasEnviadas = enviados.filter(d => d.estado !== 'CANCELADO').reduce((s, d) => s + d.cantidad, 0);
-    const piezas = piezasEnviadas + detalles.reduce((s, d) => s + d.cantidad, 0);
+    // Lo de kilo cuenta como un producto (no como 0.5 productos)
+    const cuenta = (d, unidad) => unidad === 'KILO' ? 1 : Number(d.cantidad);
+    const piezasEnviadas = enviados.filter(d => d.estado !== 'CANCELADO').reduce((s, d) => s + cuenta(d, d.unidadVenta), 0);
+    const piezas = piezasEnviadas + detalles.reduce((s, d) => s + cuenta(d, d.unidad), 0);
     document.getElementById('textoSubtotal').textContent = piezas + ' productos';
-    document.getElementById('subtotal').textContent = dinero(calcularTotal() - (tipo === 'DOMICILIO' ? COSTO_ENVIO : 0));
+    document.getElementById('subtotal').textContent = dinero(calcularTotal() - costoEnvio());
     document.getElementById('lineaEnvio').hidden = tipo !== 'DOMICILIO';
     document.getElementById('total').textContent = dinero(calcularTotal());
     document.getElementById('resumenPendientes').textContent = detalles.length + ' por enviar';
@@ -498,7 +628,18 @@ function dibujarAcciones() {
         html += '<button class="btn danger full" onclick="abrirCancelar()">CANCELAR PEDIDO</button>';
     }
     if (pedidoActual && tipo === 'LOCAL' && pedidoActual.estado !== 'CANCELADO' && pedidoActual.estado !== 'PAGADO') {
-        html += '<a class="btn secondary full" href="tomarPedido.jsp?mesa=' + idMesa + '&separada=1">NUEVA CUENTA SEPARADA EN ESTA MESA</a>';
+        // Mover la cuenta o juntar mesas para un grupo grande (RN-12 y RN-13)
+        html += '<button class="btn secondary full" onclick="abrirCambiarMesa()">CAMBIAR DE MESA</button>';
+        html += '<button class="btn secondary full" onclick="abrirJuntarMesa()">JUNTAR CON OTRA MESA</button>';
+        if (pedidoActual.estado === 'ABIERTO') {
+            html += '<a class="btn secondary full" href="tomarPedido.jsp?mesa=' + idMesa + '&separada=1">NUEVA CUENTA SEPARADA EN ESTA MESA</a>';
+        }
+    }
+    // Si la mesa tiene varias cuentas, botones para brincar de una a otra (RN-14)
+    if (cuentasMesa.length > 1) {
+        html += '<div class="ticket-round">CUENTAS DE ESTA MESA</div>' + cuentasMesa.map((c, n) =>
+            '<a class="btn ' + (pedidoActual && c.idPedido === pedidoActual.idPedido ? 'primary' : 'outline') + ' full" '
+            + 'href="tomarPedido.jsp?pedido=' + c.idPedido + '">CUENTA ' + (n + 1) + ' - ' + dinero(c.total) + '</a>').join('');
     }
 
     document.getElementById('accionesTicket').innerHTML = html;
@@ -600,7 +741,7 @@ async function enviarACocina() {
             resultado = await api('api/pedidos/' + pedidoActual.idPedido + '/detalles', 'POST',
                     {detalles: detallesParaEnviar(), claveEnvio: claveEnvioPendiente});
         } else {
-            const pedidoDTO = {tipo: tipo, cuentaSeparada: cuentaSeparada, detalles: detallesParaEnviar(),
+            const pedidoDTO = {tipo: tipo, canal: canal, cuentaSeparada: cuentaSeparada, detalles: detallesParaEnviar(),
                 claveEnvio: claveEnvioPendiente};
             if (tipo === 'LOCAL') {
                 pedidoDTO.idMesa = idMesa;
@@ -608,6 +749,7 @@ async function enviarACocina() {
             } else if (tipo === 'LLEVAR') {
                 pedidoDTO.nombreCliente = document.getElementById('nombreCliente').value.trim();
             } else {
+                // Trae nombre, telefono, direccion, referencias, canal, costo de envio y repartidor
                 Object.assign(pedidoDTO, datosEntrega);
             }
             resultado = await api('api/pedidos', 'POST', pedidoDTO);
@@ -891,6 +1033,72 @@ function protegerEnlaces() {
             evento.returnValue = '';
         }
     });
+}
+
+// ---------- Cambiar de mesa y juntar mesas ----------
+
+// Paso para los botones - y + de un producto ya enviado: 1 pieza o 1/4 de kilo
+function pasoDe(unidad) {
+    return unidad === 'KILO' ? PASO_KILO : 1;
+}
+
+/**
+ * Ventana para pasar la cuenta a otra mesa (RN-12). Solo se pueden tocar las
+ * mesas libres; las demas salen apagadas para que no haya error de dedo.
+ */
+async function abrirCambiarMesa() {
+    await abrirSelectorMesas('CAMBIAR DE MESA', 'Toca la mesa libre a donde se pasa la cuenta.', 'cambiarMesa');
+}
+
+// Ventana para juntar una mesa libre con esta mesa (RN-13)
+async function abrirJuntarMesa() {
+    await abrirSelectorMesas('JUNTAR CON OTRA MESA', 'Toca la mesa libre que se junta con la mesa ' + pedidoActual.numeroMesa + '.', 'juntarMesa');
+}
+
+// Dibuja las mesas en la ventana; accion es el nombre de la funcion que se llama al tocar
+async function abrirSelectorMesas(titulo, instruccion, accion) {
+    let mesas;
+    try {
+        mesas = await api('api/mesas');
+    } catch (e) {
+        mostrarAviso(e.message, true);
+        return;
+    }
+    const botones = mesas.map(m => {
+        const libre = m.estado === 'DISPONIBLE' && !m.juntoAMesa && m.idMesa !== idMesa;
+        return '<button class="table-tile ' + (libre ? '' : 'occupied') + '" ' + (libre ? '' : 'disabled')
+                + ' onclick="' + accion + '(' + m.idMesa + ', ' + m.numero + ')">'
+                + '<span class="table-number">' + String(m.numero).padStart(2, '0') + '</span>'
+                + '<span class="table-state">' + (libre ? 'LIBRE' : 'NO DISPONIBLE') + '</span></button>';
+    }).join('');
+    abrirModal('<div class="modal-basic"><h2>' + titulo + '</h2><p>' + instruccion + '</p>'
+            + '<div class="table-grid selector-mesas">' + botones + '</div>'
+            + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
+}
+
+// Pasa la cuenta a la mesa elegida y abre la cuenta ya en su mesa nueva
+async function cambiarMesa(idDestino, numero) {
+    try {
+        pedidoActual = await api('api/pedidos/' + pedidoActual.idPedido + '/mesa', 'POST', {idMesa: idDestino});
+        idMesa = pedidoActual.idMesa;
+        cerrarModal();
+        await cargarCuentasMesa();
+        dibujarTicket();
+        mostrarAviso('La cuenta se paso a la mesa ' + numero);
+    } catch (e) {
+        mostrarAviso(e.message, true);
+    }
+}
+
+// Junta la mesa elegida con la mesa de esta cuenta (esta queda como principal)
+async function juntarMesa(idOtra, numero) {
+    try {
+        await api('api/mesas/' + idOtra + '/juntar', 'POST', {idPrincipal: idMesa});
+        cerrarModal();
+        mostrarAviso('La mesa ' + numero + ' quedo junto a la mesa ' + pedidoActual.numeroMesa);
+    } catch (e) {
+        mostrarAviso(e.message, true);
+    }
 }
 
 // ---------- Inicio ----------

@@ -43,6 +43,8 @@ function dibujarCola() {
     contenedor.innerHTML = cola.map(d => {
         const extras = d.extras.length ? '<p><strong>Extras:</strong> ' + escapar(d.extras.join(', ')) + '</p>' : '';
         const nota = d.notaCocina ? '<p class="nota-cocina"><strong>Nota:</strong> ' + escapar(d.notaCocina) + '</p>' : '';
+        // Si es un paquete se ven las piezas que le tocan a la parrilla (ej. "3 x Taco de asada")
+        const piezas = d.piezas && d.piezas.length ? '<p class="nota-cocina"><strong>Incluye:</strong> ' + escapar(d.piezas.join(', ')) + '</p>' : '';
         const preparando = d.estado === 'EN_PREPARACION';
         // Primero se marca "en preparacion" (asi el mesero ya no lo puede quitar) y luego "listo"
         const botones = preparando
@@ -54,8 +56,8 @@ function dibujarCola() {
                 + '<div class="delivery-order-top"><strong>Turno ' + d.turno + '</strong>'
                 + '<span class="folio-chip">' + escapar(d.destino) + '</span></div>'
                 + (preparando ? '<span class="pill amber">EN PREPARACION</span>' : '<span class="pill">EN COLA - RONDA ' + d.ronda + '</span>')
-                + '<h3>' + d.cantidad + ' x ' + escapar(d.producto) + '</h3>'
-                + extras + nota
+                + '<h3>' + (d.unidadVenta === 'KILO' ? Number(d.cantidad) + ' kg' : Number(d.cantidad)) + ' x ' + escapar(d.producto) + '</h3>'
+                + piezas + extras + nota
                 + botones
                 + '</article>';
     }).join('');
@@ -73,6 +75,37 @@ async function cambiarEstado(idDetalle, estado) {
         mostrarAviso(e.message, true);
     }
     cargarCola();
+}
+
+/**
+ * Ventana "Se acabo": lista de productos de parrilla con un boton grande cada
+ * uno para marcarlo agotado o disponible (RN-05). Al marcarlo, el mesero ya
+ * no lo puede agregar.
+ */
+async function abrirAgotados() {
+    let productos;
+    try {
+        productos = await api('api/kds/productos');
+    } catch (e) {
+        mostrarAviso(e.message, true);
+        return;
+    }
+    abrirModal('<div class="modal-basic"><h2>SE ACABO...</h2><p>Toca un producto para marcarlo agotado o disponible.</p>'
+            + productos.map(p =>
+                '<button class="btn ' + (p.disponible ? 'secondary' : 'danger') + ' full" '
+                + 'onclick="cambiarDisponible(' + p.idProducto + ', ' + !p.disponible + ')">'
+                + escapar(p.nombre.toUpperCase()) + ' - ' + (p.disponible ? 'HAY' : 'SE ACABO') + '</button>').join('')
+            + '<button class="btn secondary full" onclick="cerrarModal()">LISTO</button></div>');
+}
+
+// Marca el producto y vuelve a pintar la ventana con el cambio
+async function cambiarDisponible(idProducto, disponible) {
+    try {
+        await api('api/kds/productos/' + idProducto + '/disponible', 'POST', {disponible: disponible});
+        await abrirAgotados();
+    } catch (e) {
+        mostrarAviso(e.message, true);
+    }
 }
 
 /**

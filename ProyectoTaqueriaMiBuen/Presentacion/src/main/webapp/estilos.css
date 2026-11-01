@@ -2878,3 +2878,31 @@ small.form-error:empty{
         grid-template-columns:1fr
     }
 }
+
+/* ---------- Mesas juntas y selector de mesas (cambiar / juntar) ---------- */
+
+/* Mesa pegada a otra: mismo color que su principal, con borde punteado para distinguirla */
+.table-tile.joined{
+  outline:4px dashed rgba(255,255,255,.85);
+  outline-offset:-10px;
+}
+
+/* Las mesas dentro de la ventana se ven mas chicas para que quepan las 8 */
+.selector-mesas{
+  grid-template-columns:repeat(4, minmax(0, 1fr));
+  gap:12px;
+  margin:16px 0;
+}
+.selector-mesas .table-tile{
+  min-height:96px;
+}
+/* Las mesas que no se pueden elegir se apagan para evitar errores de dedo */
+.selector-mesas .table-tile:disabled{
+  opacity:.35;
+  cursor:not-allowed;
+}
+@media (max-width:600px){
+  .selector-mesas{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+  }
+}
