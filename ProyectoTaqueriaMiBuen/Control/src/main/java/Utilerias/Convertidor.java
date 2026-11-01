@@ -7,11 +7,13 @@ import Entidades.DetalleExtra;
 import Entidades.DetallePedido;
 import Entidades.IngredienteExtra;
 import Entidades.Mesa;
+import Entidades.PaqueteComponente;
 import Entidades.Pedido;
 import Entidades.PedidoDomicilio;
 import Entidades.PedidoLocal;
 import Entidades.PedidoParaLlevar;
 import Entidades.Producto;
+import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -32,7 +34,7 @@ public class Convertidor {
      /**
      * Caja abierta para la pantalla de cobro, con lo cobrado en efectivo y con tarjeta.
      */
-    public static Map<String, Object> caja(Caja caja, double cobradoEfectivo, double cobradoTarjeta) {
+    public static Map<String, Object> caja(Caja caja, BigDecimal cobradoEfectivo, BigDecimal cobradoTarjeta) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("idCaja", caja.getIdCaja());
         m.put("abiertaPor", caja.getUsuario().getNombre());
@@ -43,18 +45,32 @@ public class Convertidor {
         return m;
     }
     
-    // Mesa para el mapa: numero, capacidad, color y, si tiene, su pedido y la cuenta
-    public static Map<String, Object> mesa(Mesa mesa, Pedido pedidoActivo) {
+    /**
+     * Mesa para el mapa: numero, capacidad, color y, si tiene, sus cuentas.
+     * Si la mesa esta junto a otra se manda tambien cual es su mesa principal,
+     * para que el mapa diga "Junto a mesa N".
+     */
+    public static Map<String, Object> mesa(Mesa mesa, List<Pedido> cuentas) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("idMesa", mesa.getIdMesa());
         m.put("numero", mesa.getNumero());
         m.put("capacidad", mesa.getCapacidad());
         m.put("estado", mesa.getEstado().name());
-        // Si la mesa tiene pedido se manda un resumen para el mapa de mesas
-        if (pedidoActivo != null) {
-            m.put("idPedido", pedidoActivo.getIdPedido());
-            m.put("estadoPedido", pedidoActivo.getEstado().name());
-            m.put("total", pedidoActivo.calcularTotal());
+        if (mesa.estaUnida()) {
+            m.put("idMesaPrincipal", mesa.getMesaPrincipal().getIdMesa());
+            m.put("juntoAMesa", mesa.getMesaPrincipal().getNumero());
+        }
+        // Resumen de las cuentas vivas para el mapa (puede haber cuentas separadas)
+        if (cuentas != null && !cuentas.isEmpty()) {
+            Pedido ultima = cuentas.get(cuentas.size() - 1);
+            BigDecimal total = BigDecimal.ZERO;
+            for (Pedido p : cuentas) {
+                total = total.add(p.calcularTotal());
+            }
+            m.put("idPedido", ultima.getIdPedido());
+            m.put("estadoPedido", ultima.getEstado().name());
+            m.put("cuentas", cuentas.size());
+            m.put("total", total);
         }
         return m;
     }
@@ -79,7 +95,13 @@ public class Convertidor {
         m.put("nombre", producto.getNombre());
         m.put("descripcion", producto.getDescripcion());
         m.put("precio", producto.getPrecio());
-        m.put("disponible", producto.isDisponible());
+        // Precio para DiDi/Uber; si no tiene se usa el normal
+        m.put("precioApps", producto.getPrecioApps() == null ? producto.getPrecio() : producto.getPrecioApps());
+        // PIEZA o KILO: con KILO la pantalla deja capturar 0.25, 0.5, etc.
+        m.put("unidadVenta", producto.getUnidadVenta().name());
+        m.put("pasaPorParrilla", producto.isPasaPorParrilla());
+        m.put("disponible", producto.sePuedePedir());
+        m.put("piezas", piezasDePaquete(producto, false));
         List<Map<String, Object>> extras = new ArrayList<>();
         for (IngredienteExtra extra : producto.getExtras()) {
             Map<String, Object> e = new LinkedHashMap<>();
@@ -99,6 +121,7 @@ public class Convertidor {
         m.put("folio", pedido.getFolio());
         m.put("estado", pedido.getEstado().name());
         m.put("tipo", tipo(pedido));
+        m.put("canal", pedido.getCanal().name());
         m.put("destino", destino(pedido));
         m.put("hora", pedido.getFechaApertura() == null ? "" : pedido.getFechaApertura().format(HORA));
         if (pedido instanceof PedidoLocal) {
@@ -113,6 +136,8 @@ public class Convertidor {
         if (pedido instanceof PedidoDomicilio) {
             PedidoDomicilio domicilio = (PedidoDomicilio) pedido;
             m.put("costoEnvio", domicilio.getCostoEnvio());
+            m.put("tipoRepartidor", domicilio.getTipoRepartidor().name());
+            m.put("repartidor", domicilio.getRepartidor());
             DatosEntrega datos = domicilio.getDatosEntrega();
             if (datos != null) {
                 m.put("nombreCliente", datos.getNombreCliente());
@@ -127,6 +152,7 @@ public class Convertidor {
         }
         m.put("detalles", detalles);
         m.put("subtotal", pedido.calcularSubtotal());
+        m.put("descuento", pedido.getDescuento());
         m.put("total", pedido.calcularTotal());
         m.put("pendientesCocina", pedido.productosPendientesEnCocina());
         m.put("rondas", pedido.siguienteRonda() - 1);
@@ -160,6 +186,8 @@ public class Convertidor {
         }
         m.put("extras", extras);
         m.put("importe", detalle.calcularImporte());
+        m.put("cortesia", detalle.isCortesia());
+        m.put("unidadVenta", detalle.getProducto().getUnidadVenta().name());
         return m;
     }
 
@@ -171,7 +199,25 @@ public class Convertidor {
         m.put("folio", detalle.getPedido().getFolio());
         m.put("tipo", tipo(detalle.getPedido()));
         m.put("destino", destino(detalle.getPedido()));
+        // Si es un paquete, la parrilla necesita ver que piezas le tocan
+        // (ej. "3 x Taco de asada"); el refresco del paquete no le toca
+        m.put("piezas", piezasDePaquete(detalle.getProducto(), true));
         return m;
+    }
+
+    /**
+     * Piezas de un paquete como texto ("3 x Taco de asada"). Con soloParrilla
+     * se quitan las que no prepara la parrilla (bebidas, guacamole).
+     */
+    private static List<String> piezasDePaquete(Producto producto, boolean soloParrilla) {
+        List<String> piezas = new ArrayList<>();
+        for (PaqueteComponente pieza : producto.getComponentes()) {
+            if (soloParrilla && !pieza.getComponente().isPasaPorParrilla()) {
+                continue;
+            }
+            piezas.add(pieza.getCantidad() + " x " + pieza.getComponente().getNombre());
+        }
+        return piezas;
     }
 
     // LOCAL, LLEVAR o DOMICILIO, igual que en PedidoDTO

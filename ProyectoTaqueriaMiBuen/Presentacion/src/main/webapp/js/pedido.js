@@ -17,8 +17,9 @@ const COSTO_ENVIO = 25.00;
 // Cada cuanto se vuelve a pedir el pedido para ver como va la cocina
 const INTERVALO_REFRESCO = 3000;
 const parametros = new URLSearchParams(window.location.search);
-const rolUsuario = document.body.dataset.rol;
-const esCajero = rolUsuario === 'CAJERO' || rolUsuario === 'ADMINISTRADOR';
+// Una cuenta puede tener varios roles; llegan como "CAJERO,MESERO"
+const rolesUsuario = (document.body.dataset.roles || '').split(',');
+const esCajero = rolesUsuario.includes('CAJERO') || rolesUsuario.includes('ADMINISTRADOR');
 
 // Datos de la pantalla
 let tipo = parametros.get('tipo') || 'LOCAL';      // LOCAL, LLEVAR o DOMICILIO

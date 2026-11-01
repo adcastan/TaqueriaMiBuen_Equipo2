@@ -44,8 +44,8 @@ public class FiltroSeguridad implements Filter {
         }
 
         HttpSession sesion = req.getSession(false);
-        String rol = sesion == null ? null : (String) sesion.getAttribute("rol");
-        if (rol == null) {
+        String roles = sesion == null ? null : (String) sesion.getAttribute("roles");
+        if (roles == null) {
             negar(req, resp, 401, "Inicia sesion para continuar");
             return;
         }
@@ -60,11 +60,24 @@ public class FiltroSeguridad implements Filter {
         } else if (esCaja) {
             permitidos = ROLES_CAJA;
         }
-        if (!ruta.equals("/logout") && !permitidos.contains(rol)) {
+        if (!ruta.equals("/logout") && !tieneAlguno(roles, permitidos)) {
             negar(req, resp, 403, "Tu rol no tiene permiso para esta pantalla");
             return;
         }
         chain.doFilter(request, response);
+    }
+
+    /**
+     * true si alguno de los roles de la sesion esta en la lista de permitidos.
+     * Los roles vienen como "CAJERO,MESERO" porque una cuenta puede tener varios.
+     */
+    private boolean tieneAlguno(String roles, List<String> permitidos) {
+        for (String rol : roles.split(",")) {
+            if (permitidos.contains(rol.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // A la API se le contesta JSON. 

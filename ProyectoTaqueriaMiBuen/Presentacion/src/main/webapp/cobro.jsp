@@ -16,7 +16,7 @@ Toda la logica de la pantalla esta en cobro.js.
         <link rel="icon" href="assets/brand.svg" type="image/svg+xml">
         <link rel="stylesheet" href="estilos.css">
     </head>
-    <body data-rol="${sessionScope.rol}">
+    <body data-roles="${sessionScope.roles}">
         <%@include file="WEB-INF/partes/encabezado.jspf" %>
 
         <main class="workspace" id="main">

@@ -2,6 +2,11 @@
  * cobro.js - Script de cobro.jsp (secuencia Cobrar pedido, CU-05).
  * Pide a CobroServlet la caja abierta y los pedidos por cobrar,
  * abre la caja si hace falta y registra el pago de un pedido.
+ * Metodos: efectivo (con cambio), tarjeta y transferencia. Los pedidos de
+ * DiDi Food y Uber Eats ya vienen pagados en la app: solo se confirman y el
+ * servidor los registra como PLATAFORMA, sin pasar por la caja.
+ * Pago mixto, dividir la cuenta, descuentos y cortesias los agrega el
+ * siguiente equipo (ya estan en la base de datos).
  * Equipo 2
  */
 
@@ -51,6 +56,7 @@ function dibujarCaja() {
             + '<div class="mini-stat"><span>Fondo inicial</span><strong>' + dinero(caja.montoInicial) + '</strong></div>'
             + '<div class="mini-stat"><span>Cobrado en efectivo</span><strong>' + dinero(caja.cobradoEfectivo) + '</strong></div>'
             + '<div class="mini-stat"><span>Cobrado con tarjeta</span><strong>' + dinero(caja.cobradoTarjeta) + '</strong></div>'
+            + '<div class="mini-stat"><span>Cobrado por transferencia</span><strong>' + dinero(caja.cobradoTransferencia) + '</strong></div>'
             + '</div>';
 }
 
@@ -86,7 +92,9 @@ function dibujarPendientes() {
         + '<span class="folio-chip">' + escapar(p.folio) + '</span></div>'
         + '<p class="muted">Abierto a las ' + escapar(p.hora) + ' - ' + cobrables(p).length + ' productos</p>'
         + '<h3>' + dinero(p.total) + '</h3>'
-        + '<button class="btn primary full" onclick="abrirCobro(' + p.idPedido + ')" ' + (caja ? '' : 'disabled') + '>COBRAR</button>'
+        // Los de app no necesitan caja abierta porque no entra dinero
+        + '<button class="btn primary full" onclick="abrirCobro(' + p.idPedido + ')" ' + (caja || p.esDeApp ? '' : 'disabled') + '>'
+        + (p.esDeApp ? 'CONFIRMAR APP' : 'COBRAR') + '</button>'
         + '</article>'
     ).join('');
 }
@@ -95,38 +103,54 @@ function dibujarPendientes() {
 
 // Abre la ventana de cobro del pedido que eligio el cajero
 function abrirCobro(idPedido) {
-    if (!caja) {
-        mostrarAviso('Abre la caja antes de cobrar', true);
-        return;
-    }
     pedidoCobro = pendientes.find(p => p.idPedido === idPedido);
     if (!pedidoCobro) {
         mostrarAviso('Ese pedido ya no esta por cobrar', true);
+        return;
+    }
+    // Sin caja solo se pueden confirmar los pedidos de app
+    if (!caja && !pedidoCobro.esDeApp) {
+        mostrarAviso('Abre la caja antes de cobrar', true);
         return;
     }
     metodoElegido = 'EFECTIVO';
     dibujarVentanaCobro();
 }
 
-// Renglones que si se cobran: todos menos los cancelados (los cancelados no suman al total)
+// Renglones que se cobran. El servidor ya no manda los cancelados, pero se deja el filtro por si acaso
 function cobrables(p) {
     return p.detalles.filter(d => d.estado !== 'CANCELADO');
+}
+
+// Texto del renglon en el ticket; las cortesias se marcan para que se vea por que van en $0
+function lineaTicket(d) {
+    const nombre = d.cantidad + 'x ' + escapar(d.producto) + (d.cortesia ? ' (cortesia)' : '');
+    return '<div class="receipt-line"><span>' + nombre + '</span><span>' + dinero(d.importe) + '</span></div>';
 }
 
 // Pinta la ventana de cobro con el total, el metodo y el cambio
 function dibujarVentanaCobro() {
     const p = pedidoCobro;
     // Lo cancelado no se cobra, asi que tampoco sale en el ticket
-    const lineas = cobrables(p).map(d =>
-        '<div class="receipt-line"><span>' + d.cantidad + 'x ' + escapar(d.producto) + '</span><span>' + dinero(d.importe) + '</span></div>'
-    ).join('');
+    const lineas = cobrables(p).map(lineaTicket).join('');
     const envio = p.costoEnvio
             ? '<div class="receipt-line"><span>Envio</span><span>' + dinero(p.costoEnvio) + '</span></div>' : '';
+    // Pedido de app: ya se pago en DiDi o Uber, no se elige metodo ni se recibe dinero
+    if (p.esDeApp) {
+        abrirModal(
+            '<div class="modal-basic"><h2>Confirmar pedido de app - ' + escapar(p.destino) + '</h2>'
+            + '<p class="muted">Folio ' + escapar(p.folio) + '</p>' + lineas + envio
+            + '<div class="receipt-line receipt-total"><strong>TOTAL</strong><strong>' + dinero(p.total) + '</strong></div>'
+            + '<p class="muted">El cliente ya pago en la app. No entra dinero a la caja.</p>'
+            + '<button class="btn primary full" id="botonCobrar" onclick="cobrarPedido()">CONFIRMAR PAGO EN APP</button>'
+            + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
+        return;
+    }
     const campoEfectivo = metodoElegido === 'EFECTIVO'
             ? '<div class="field"><label for="montoRecibido">Efectivo recibido</label>'
-              + '<input id="montoRecibido" type="number" min="0" step="0.50" value="' + p.total.toFixed(2) + '" oninput="calcularCambio()"></div>'
+              + '<input id="montoRecibido" type="number" min="0" step="0.50" value="' + Number(p.total).toFixed(2) + '" oninput="calcularCambio()"></div>'
               + '<div class="receipt-line receipt-total"><strong>CAMBIO</strong><strong id="cambio">$0.00</strong></div>'
-            : '<p class="muted">El cobro con tarjeta se hace por el total exacto.</p>';
+            : '<p class="muted">Con ' + metodoElegido.toLowerCase() + ' se cobra el total exacto.</p>';
 
     abrirModal(
         '<div class="modal-basic"><h2>Cobrar - ' + escapar(p.destino) + '</h2>'
@@ -135,6 +159,7 @@ function dibujarVentanaCobro() {
         + '<div class="metodos-pago">'
         + '<button class="category-tab ' + (metodoElegido === 'EFECTIVO' ? 'active' : '') + '" onclick="elegirMetodo(\'EFECTIVO\')">EFECTIVO</button>'
         + '<button class="category-tab ' + (metodoElegido === 'TARJETA' ? 'active' : '') + '" onclick="elegirMetodo(\'TARJETA\')">TARJETA</button>'
+        + '<button class="category-tab ' + (metodoElegido === 'TRANSFERENCIA' ? 'active' : '') + '" onclick="elegirMetodo(\'TRANSFERENCIA\')">TRANSFERENCIA</button>'
         + '</div>'
         + campoEfectivo
         + '<button class="btn primary full" id="botonCobrar" onclick="cobrarPedido()">CONFIRMAR COBRO</button>'
@@ -144,7 +169,7 @@ function dibujarVentanaCobro() {
     }
 }
 
-// Cambia entre efectivo y tarjeta y vuelve a pintar la ventana
+// Cambia entre efectivo, tarjeta y transferencia y vuelve a pintar la ventana
 function elegirMetodo(metodo) {
     metodoElegido = metodo;
     dibujarVentanaCobro();
@@ -153,7 +178,7 @@ function elegirMetodo(metodo) {
 // Muestra el cambio mientras se escribe lo recibido
 function calcularCambio() {
     const recibido = Number(document.getElementById('montoRecibido').value) || 0;
-    const cambio = recibido - pedidoCobro.total;
+    const cambio = recibido - Number(pedidoCobro.total);
     document.getElementById('cambio').textContent = cambio >= 0 ? dinero(cambio) : 'Falta ' + dinero(-cambio);
     document.getElementById('botonCobrar').disabled = cambio < 0;
 }
@@ -164,7 +189,7 @@ function calcularCambio() {
  */
 async function cobrarPedido() {
     const campo = document.getElementById('montoRecibido');
-    const recibido = campo ? Number(campo.value) : pedidoCobro.total;
+    const recibido = campo ? Number(campo.value) : Number(pedidoCobro.total);
     let resultado;
     try {
         resultado = await api('api/cobros/' + pedidoCobro.idPedido, 'POST', {
@@ -183,17 +208,17 @@ async function cobrarPedido() {
 function mostrarTicketPago(resultado) {
     const p = pedidoCobro;
     // Lo cancelado no se cobra, asi que tampoco sale en el ticket
-    const lineas = cobrables(p).map(d =>
-        '<div class="receipt-line"><span>' + d.cantidad + 'x ' + escapar(d.producto) + '</span><span>' + dinero(d.importe) + '</span></div>'
-    ).join('');
+    const lineas = cobrables(p).map(lineaTicket).join('');
     const envio = p.costoEnvio
             ? '<div class="receipt-line"><span>Envio</span><span>' + dinero(p.costoEnvio) + '</span></div>' : '';
+    // En el ticket se dice "Pago en app" en lugar de "Pago con plataforma"
+    const textoMetodo = resultado.metodo === 'PLATAFORMA' ? 'Pago en app' : 'Pago con ' + resultado.metodo.toLowerCase();
     abrirModal(
         '<div class="modal-basic"><h2>Ticket de pago - ' + escapar(p.destino) + '</h2>'
         + '<p class="muted">Folio ' + escapar(resultado.folio) + ' - ' + new Date().toLocaleString('es-MX') + '</p>'
         + lineas + envio
         + '<div class="receipt-line receipt-total"><strong>TOTAL</strong><strong>' + dinero(resultado.total) + '</strong></div>'
-        + '<div class="receipt-line"><span>Pago con ' + escapar(resultado.metodo.toLowerCase()) + '</span><span>' + dinero(resultado.montoRecibido) + '</span></div>'
+        + '<div class="receipt-line"><span>' + escapar(textoMetodo) + '</span><span>' + dinero(resultado.montoRecibido) + '</span></div>'
         + '<div class="receipt-line"><span>Cambio</span><span>' + dinero(resultado.cambio) + '</span></div>'
         + '<p class="muted">Gracias por su visita</p>'
         + '<button class="btn primary full" onclick="window.print()">IMPRIMIR TICKET</button>'
@@ -208,7 +233,7 @@ async function iniciar() {
     await cargarCobro();
     // cobro.jsp?pedido=8 abre directo la ventana de ese pedido
     const idPedido = Number(parametrosCobro.get('pedido'));
-    if (idPedido && caja && pendientes.some(p => p.idPedido === idPedido)) {
+    if (idPedido && pendientes.some(p => p.idPedido === idPedido)) {
         abrirCobro(idPedido);
     }
 }

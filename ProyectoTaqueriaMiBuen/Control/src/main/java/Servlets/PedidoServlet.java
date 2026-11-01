@@ -17,6 +17,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -26,12 +27,14 @@ import java.util.Map;
  *   GET  /api/pedidos: pedidos activos (para llevar y domicilio en el mapa)
  *   GET  /api/pedidos?id={idPedido}: un pedido con sus detalles
  *   GET  /api/pedidos?idMesa={idMesa}: pedido activo de una mesa (null si esta libre)
+ *   GET  /api/pedidos?cuentasMesa={idMesa}: todas las cuentas vivas de una mesa o grupo de mesas
  *   POST /api/pedidos: crea el pedido y lo manda a cocina (PedidoDTO)
  *   POST /api/pedidos/{idPedido}/detalles: agrega una ronda de productos
  *   POST /api/pedidos/{idPedido}/detalles/{idDetalle}/cantidad: cambia la cantidad (solo en cola)
  *   POST /api/pedidos/{idPedido}/detalles/{idDetalle}/quitar: quita un producto (solo en cola)
  *   POST /api/pedidos/{idPedido}/detalles/{idDetalle}/cancelar: cancela un producto ya en preparacion (PIN de cajero)
  *   POST /api/pedidos/{idPedido}/cerrar: el cliente pide la cuenta
+ *   POST /api/pedidos/{idPedido}/mesa {idMesa}: pasa la cuenta a otra mesa libre (RN-12)
  *   POST /api/pedidos/{idPedido}/cancelar: cancela con motivo (y PIN si es mesero)
  *
  * Codigos que contesta, para que la pantalla sepa que hacer:
@@ -59,9 +62,14 @@ public class PedidoServlet extends HttpServlet {
         String pin;
     }
 
-    // Cuerpo de POST .../cantidad
+    // Cuerpo de POST .../cantidad (BigDecimal porque lo de kilo trae decimales)
     private static class NuevaCantidad {
-        Integer cantidad;
+        BigDecimal cantidad;
+    }
+
+    // Cuerpo de POST /api/pedidos/{id}/mesa
+    private static class NuevaMesa {
+        Integer idMesa;
     }
 
     // Consultas de pedidos (ver las rutas GET de arriba)
@@ -70,7 +78,15 @@ public class PedidoServlet extends HttpServlet {
         try {
             String id = req.getParameter("id");
             String idMesa = req.getParameter("idMesa");
-            if (id != null) {
+            String cuentasMesa = req.getParameter("cuentasMesa");
+            if (cuentasMesa != null) {
+                // Para elegir a que cuenta agregar cuando hay cuentas separadas
+                List<Map<String, Object>> cuentas = new ArrayList<>();
+                for (Pedido pedido : pedidoService.obtenerCuentasDeMesa(Integer.parseInt(cuentasMesa))) {
+                    cuentas.add(Convertidor.pedido(pedido));
+                }
+                Json.enviar(resp, 200, cuentas);
+            } else if (id != null) {
                 Json.enviar(resp, 200, Convertidor.pedido(pedidoService.obtenerPedido(Integer.parseInt(id))));
             } else if (idMesa != null) {
                 // Si la mesa esta libre se regresa null (no es un error)
@@ -148,6 +164,14 @@ public class PedidoServlet extends HttpServlet {
                 pedidoService.cancelarPedido(idPedido, datos.motivo, autoriza, usuario);
                 Json.enviar(resp, 200, Map.of("ok", true));
                 break;
+            case "mesa":
+                NuevaMesa nuevaMesa = Json.leer(req, NuevaMesa.class);
+                if (nuevaMesa == null || nuevaMesa.idMesa == null) {
+                    throw new NegocioException("Elige la mesa a donde se pasa la cuenta");
+                }
+                Pedido movido = pedidoService.cambiarMesa(idPedido, nuevaMesa.idMesa, usuario);
+                Json.enviar(resp, 200, Convertidor.pedido(pedidoService.obtenerPedido(movido.getIdPedido())));
+                break;
             default:
                 Json.error(resp, 404, "Ruta no encontrada");
         }
@@ -182,8 +206,9 @@ public class PedidoServlet extends HttpServlet {
 
     // Si quien cancela es cajero o administrador se autoriza solo, si es mesero se pide PIN.
     private Usuario quienAutoriza(HttpServletRequest req, Usuario usuario, String pin) {
-        String rol = (String) req.getSession().getAttribute("rol");
-        if ("CAJERO".equals(rol) || "ADMINISTRADOR".equals(rol)) {
+        // Si entre sus roles tiene cajero o administrador, el mismo autoriza
+        String roles = "," + req.getSession().getAttribute("roles") + ",";
+        if (roles.contains(",CAJERO,") || roles.contains(",ADMINISTRADOR,")) {
             return usuario;
         }
         try {
