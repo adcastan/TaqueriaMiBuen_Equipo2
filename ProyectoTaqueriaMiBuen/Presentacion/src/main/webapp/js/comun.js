@@ -89,6 +89,23 @@ function mostrarAviso(mensaje, esError = false) {
     temporizadorAviso = setTimeout(() => aviso.className = '', 4500);
 }
 
+/**
+ * Aviso con boton DESHACER (5 segundos). Se usa en lugar de preguntar
+ * "¿Estas seguro?" para lo que se puede revertir, como quitar un producto
+ * que todavia no se manda: es mas rapido y no se vuelve "clic sin leer".
+ */
+function mostrarDeshacer(mensaje, alDeshacer) {
+    const aviso = document.getElementById('toast');
+    aviso.innerHTML = '<span>' + escapar(mensaje) + '</span><button type="button">DESHACER</button>';
+    aviso.className = 'show';
+    aviso.querySelector('button').onclick = () => {
+        aviso.className = '';
+        alDeshacer();
+    };
+    clearTimeout(temporizadorAviso);
+    temporizadorAviso = setTimeout(() => aviso.className = '', 5000);
+}
+
 // Abre una ventana (modal) con el HTML que se le pase
 function abrirModal(html) {
     document.getElementById('modal-root').innerHTML =

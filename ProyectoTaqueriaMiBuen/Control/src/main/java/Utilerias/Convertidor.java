@@ -14,6 +14,8 @@ import Entidades.PedidoLocal;
 import Entidades.PedidoParaLlevar;
 import Entidades.Producto;
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -196,6 +198,12 @@ public class Convertidor {
      */
     public static Map<String, Object> detalleCocina(DetallePedido detalle) {
         Map<String, Object> m = detalle(detalle);
+        // Con esto el monitor junta los productos de la misma comanda (pedido + ronda)
+        m.put("idPedido", detalle.getPedido().getIdPedido());
+        m.put("canal", detalle.getPedido().getCanal().name());
+        // Minutos desde que se mando a cocina; el monitor cambia de color con esto
+        m.put("minutosEspera", detalle.getFechaEnvio() == null ? 0
+                : Duration.between(detalle.getFechaEnvio(), LocalDateTime.now()).toMinutes());
         m.put("folio", detalle.getPedido().getFolio());
         m.put("tipo", tipo(detalle.getPedido()));
         m.put("destino", destino(detalle.getPedido()));

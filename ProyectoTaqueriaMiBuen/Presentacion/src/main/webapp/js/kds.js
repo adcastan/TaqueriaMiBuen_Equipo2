@@ -32,35 +32,99 @@ async function cargarCola() {
     }
 }
 
-// Pinta una tarjeta por producto en el orden de su turno, con sus botones
+// Minutos de espera para cambiar el color de la comanda (se pueden ajustar aqui).
+// A tiempo = verde, atencion = ambar, tarde = rojo. Se mide desde que se mando a cocina.
+const MINUTOS_ATENCION = 8;
+const MINUTOS_TARDE = 15;
+
+// Nombres cortos de los canales para la cabeza de la comanda
+const CANALES = {MESA: '', MOSTRADOR: 'Mostrador', TELEFONO: 'Telefono', WHATSAPP: 'WhatsApp',
+    DIDI_FOOD: 'DiDi Food', UBER_EATS: 'Uber Eats'};
+
+/**
+ * Junta los productos de la cola por comanda (mismo pedido y misma ronda),
+ * porque la parrilla trabaja por mesa, no producto por producto. Las comandas
+ * quedan de la mas vieja a la mas nueva (orden de turno).
+ */
+function agruparPorComanda(detalles) {
+    const comandas = [];
+    const porClave = {};
+    for (const d of detalles) {
+        const clave = d.idPedido + '-' + d.ronda;
+        if (!porClave[clave]) {
+            porClave[clave] = {destino: d.destino, canal: d.canal, ronda: d.ronda, minutos: 0, productos: []};
+            comandas.push(porClave[clave]);
+        }
+        porClave[clave].productos.push(d);
+        // La comanda espera lo que espera su producto mas viejo
+        porClave[clave].minutos = Math.max(porClave[clave].minutos, d.minutosEspera || 0);
+    }
+    return comandas;
+}
+
+/**
+ * Tira "En plancha": cuantos de cada producto faltan en TODAS las comandas.
+ * Asi el parrillero echa a la plancha toda la carne de una vez. Lo de los
+ * paquetes se cuenta por sus piezas (3 x Taco de asada).
+ */
+function dibujarEnPlancha() {
+    const totales = {};
+    const sumar = (nombre, cantidad) => totales[nombre] = (totales[nombre] || 0) + cantidad;
+    for (const d of cola) {
+        const cantidad = Number(d.cantidad);
+        if (d.piezas && d.piezas.length) {
+            for (const pieza of d.piezas) {
+                const partes = pieza.split(' x ');
+                sumar(partes[1], Number(partes[0]) * cantidad);
+            }
+        } else {
+            sumar(d.producto + (d.unidadVenta === 'KILO' ? ' (kg)' : ''), cantidad);
+        }
+    }
+    const nombres = Object.keys(totales);
+    document.getElementById('enPlancha').innerHTML = nombres.length
+            ? 'EN PLANCHA:' + nombres.map(n => '<span>' + Number(totales[n].toFixed(3)) + ' x ' + escapar(n) + '</span>').join('')
+            : '';
+}
+
+// Pinta una tarjeta por comanda con un solo boton grande por producto
 function dibujarCola() {
     document.getElementById('totalPendientes').textContent = cola.length + ' pendientes';
+    dibujarEnPlancha();
     const contenedor = document.getElementById('cola');
     if (cola.length === 0) {
-        contenedor.innerHTML = '<div class="empty"><strong>Sin pendientes</strong>Cuando llegue un pedido aparecera aqui.</div>';
+        contenedor.innerHTML = '<div class="empty"><strong>Sin pendientes</strong>Cuando llegue una comanda aparecera aqui.</div>';
         return;
     }
-    contenedor.innerHTML = cola.map(d => {
-        const extras = d.extras.length ? '<p><strong>Extras:</strong> ' + escapar(d.extras.join(', ')) + '</p>' : '';
-        const nota = d.notaCocina ? '<p class="nota-cocina"><strong>Nota:</strong> ' + escapar(d.notaCocina) + '</p>' : '';
-        // Si es un paquete se ven las piezas que le tocan a la parrilla (ej. "3 x Taco de asada")
-        const piezas = d.piezas && d.piezas.length ? '<p class="nota-cocina"><strong>Incluye:</strong> ' + escapar(d.piezas.join(', ')) + '</p>' : '';
-        const preparando = d.estado === 'EN_PREPARACION';
-        // Primero se marca "en preparacion" (asi el mesero ya no lo puede quitar) y luego "listo"
-        const botones = preparando
-                ? '<button class="btn primary full" onclick="cambiarEstado(' + d.idDetalle + ', \'LISTO\')">LISTO</button>'
-                : '<div class="kitchen-actions">'
-                + '<button class="btn secondary" onclick="cambiarEstado(' + d.idDetalle + ', \'EN_PREPARACION\')">EN PREPARACION</button>'
-                + '<button class="btn primary" onclick="cambiarEstado(' + d.idDetalle + ', \'LISTO\')">LISTO</button></div>';
-        return '<article class="delivery-order kitchen' + (preparando ? ' preparing' : '') + '">'
-                + '<div class="delivery-order-top"><strong>Turno ' + d.turno + '</strong>'
-                + '<span class="folio-chip">' + escapar(d.destino) + '</span></div>'
-                + (preparando ? '<span class="pill amber">EN PREPARACION</span>' : '<span class="pill">EN COLA - RONDA ' + d.ronda + '</span>')
-                + '<h3>' + (d.unidadVenta === 'KILO' ? Number(d.cantidad) + ' kg' : Number(d.cantidad)) + ' x ' + escapar(d.producto) + '</h3>'
-                + piezas + extras + nota
-                + botones
+    contenedor.innerHTML = agruparPorComanda(cola).map(c => {
+        const urgencia = c.minutos >= MINUTOS_TARDE ? ' tarde' : (c.minutos >= MINUTOS_ATENCION ? ' atencion' : '');
+        const canal = CANALES[c.canal] ? ' · ' + CANALES[c.canal] : '';
+        return '<article class="comanda' + urgencia + '">'
+                + '<header class="comanda-cabeza"><div><h3>' + escapar(c.destino) + '</h3>'
+                + '<small>Ronda ' + c.ronda + canal + '</small></div>'
+                + '<span class="minutos">' + c.minutos + ' min</span></header>'
+                + c.productos.map(renglonCocina).join('')
                 + '</article>';
     }).join('');
+}
+
+/**
+ * Un producto de la comanda. Un solo boton: primero "EMPEZAR" (desde ahi el
+ * mesero ya no lo puede quitar) y luego "LISTO".
+ */
+function renglonCocina(d) {
+    const cantidad = d.unidadVenta === 'KILO' ? Number(d.cantidad) + ' kg' : Number(d.cantidad);
+    const preparando = d.estado === 'EN_PREPARACION';
+    let resaltados = '';
+    if (d.piezas && d.piezas.length) resaltados += '<span class="resaltado">' + escapar(d.piezas.join(', ')) + '</span> ';
+    if (d.extras.length) resaltados += '<span class="resaltado">' + escapar(d.extras.join(', ')) + '</span> ';
+    if (d.notaCocina) resaltados += '<span class="resaltado">' + escapar(d.notaCocina) + '</span>';
+    const boton = preparando
+            ? '<button class="btn primary" onclick="cambiarEstado(' + d.idDetalle + ', \'LISTO\')">LISTO</button>'
+            : '<button class="btn secondary" onclick="cambiarEstado(' + d.idDetalle + ', \'EN_PREPARACION\')">EMPEZAR</button>';
+    return '<div class="renglon-cocina' + (preparando ? ' preparando' : '') + '">'
+            + '<div><h4><b>' + cantidad + '</b>' + escapar(d.producto) + '</h4>' + (resaltados ? '<p>' + resaltados + '</p>' : '') + '</div>'
+            + boton + '</div>';
 }
 
 /**

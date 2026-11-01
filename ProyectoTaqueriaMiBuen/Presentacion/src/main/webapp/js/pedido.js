@@ -238,7 +238,7 @@ function dibujarProductos() {
                 + '<strong class="product-price">' + dinero(precioDe(p)) + (esKilo(p) ? ' / kg' : '') + '</strong>'
                 + '<span class="product-body">'
                 + '<img class="product-photo" src="' + imagenProducto(p.categoria) + '" alt="" width="65" height="65">'
-                + '<strong class="product-name">' + escapar(p.nombre.toUpperCase()) + '</strong>'
+                + '<strong class="product-name">' + escapar(p.nombre) + '</strong>'
                 + '<span class="product-description">' + escapar(p.piezas && p.piezas.length
                         ? 'Incluye: ' + p.piezas.join(' + ') : (p.descripcion || '')) + '</span>'
                 + '</span>'
@@ -279,28 +279,37 @@ function esProductoConNota(producto) {
 // Pinta la ventana de cantidad, extras y nota para cocina
 function dibujarPersonalizar() {
     const p = productoElegido;
-    let extrasHtml = '<p class="muted">Este producto no tiene ingredientes extra.</p>';
-    if (p.extras.length > 0) {
-        extrasHtml = '<div class="custom-options">' + p.extras.map(e =>
-            '<button type="button" class="custom-option ' + (extrasElegidos.includes(e.idExtra) ? 'active' : '') + '" '
-                    + 'onclick="alternarExtra(' + e.idExtra + ')">' + escapar(e.nombre.toUpperCase())
-                    + '<span class="tag">+ ' + dinero(e.precio) + '</span></button>'
-        ).join('') + '</div>';
+    // Las opciones sin costo ("Sin cebolla") van aparte de los extras que se cobran,
+    // asi no sale un confuso "+ $0.00"
+    const boton = e => '<button type="button" class="custom-option ' + (extrasElegidos.includes(e.idExtra) ? 'active' : '') + '" '
+            + 'onclick="alternarExtra(' + e.idExtra + ')">' + escapar(e.nombre)
+            + (Number(e.precio) > 0 ? '<span class="tag">+ ' + dinero(e.precio) + '</span>' : '') + '</button>';
+    const sinCosto = p.extras.filter(e => Number(e.precio) === 0);
+    const conCosto = p.extras.filter(e => Number(e.precio) > 0);
+    let extrasHtml = '';
+    if (sinCosto.length) {
+        extrasHtml += '<section class="modal-section"><div class="modal-section-title"><strong>Preparacion</strong><small>Sin costo</small></div>'
+                + '<div class="custom-options">' + sinCosto.map(boton).join('') + '</div></section>';
+    }
+    if (conCosto.length) {
+        extrasHtml += '<section class="modal-section"><div class="modal-section-title"><strong>Extras</strong><small>Se cobran aparte</small></div>'
+                + '<div class="custom-options">' + conCosto.map(boton).join('') + '</div></section>';
     }
     const notaAnterior = document.getElementById('notaCocina') ? document.getElementById('notaCocina').value : '';
 
     abrirModal(
             '<header class="modal-header">'
             + '<span class="title-icon"><img src="' + imagenProducto(p.categoria) + '" alt="" width="30" height="30"></span>'
-            + '<div><h2>' + escapar(p.nombre.toUpperCase()) + '</h2><p><strong>' + dinero(precioDe(p)) + (esKilo(p) ? ' el kilo' : ' c/u') + '</strong></p></div>'
+            + '<div><h2>' + escapar(p.nombre) + '</h2><p><strong>' + dinero(precioDe(p)) + (esKilo(p) ? ' el kilo' : ' c/u') + '</strong></p></div>'
             + '<button class="icon-btn" onclick="cerrarModal()" aria-label="Cerrar">X</button>'
             + '</header>'
             + '<div class="modal-body">'
             + (esKilo(p) ? panelKilos() : panelPiezas())
-            + '<section class="modal-section"><div class="modal-section-title"><strong>INGREDIENTES EXTRA</strong>'
-            + '<small>Toca para agregar o quitar</small></div>' + extrasHtml + '</section>'
+            + extrasHtml
             + '<div class="field"><label for="notaCocina">Nota para cocina (opcional)</label>'
             + '<input id="notaCocina" maxlength="150" placeholder="Ej. sin cebolla, bien dorado" value="' + escapar(notaAnterior) + '">'
+            + '<div class="notas-rapidas">' + NOTAS_RAPIDAS.map(n =>
+                '<button type="button" onclick="agregarNotaRapida(\'' + n + '\')">' + n + '</button>').join('') + '</div>'
             + '<small>Maximo 150 letras</small></div>'
             + '</div>'
             + '<footer class="modal-footer">'
@@ -329,6 +338,18 @@ function panelKilos() {
             + '<div class="field"><label for="otrosKilos">Otra cantidad (kg)</label>'
             + '<input id="otrosKilos" type="number" inputmode="decimal" min="0.05" max="20" step="0.05" value="' + cantidadElegida + '" '
             + 'onchange="elegirKilos(Number(this.value))"></div></div>';
+}
+
+// Notas que mas se piden; un toque las agrega a la nota para no teclear
+const NOTAS_RAPIDAS = ['Bien dorado', 'Termino medio', 'Bien cocido', 'Poca sal'];
+
+// Agrega la nota rapida al campo (separada por coma) sin pasarse de 150 letras
+function agregarNotaRapida(texto) {
+    const campo = document.getElementById('notaCocina');
+    const actual = campo.value.trim();
+    if (actual.toLowerCase().includes(texto.toLowerCase())) return;
+    const nuevo = actual ? actual + ', ' + texto.toLowerCase() : texto;
+    campo.value = nuevo.slice(0, 150);
 }
 
 // Botones + y - de la ventana; la cantidad se queda entre 1 y 99
@@ -418,9 +439,15 @@ function agregarDetalle(idProducto, cantidad) {
 
 // Quita un renglon de lo nuevo (todavia no se habia mandado)
 function quitarDetalle(i) {
-    detalles.splice(i, 1);
+    const quitado = detalles.splice(i, 1)[0];
     claveEnvioPendiente = null;
     dibujarTicket();
+    // En vez de preguntar "¿Seguro?", se quita y se ofrece DESHACER por 5 segundos
+    mostrarDeshacer('Se quito ' + textoCantidad(quitado.cantidad, quitado.unidad) + ' x ' + quitado.nombre, () => {
+        detalles.splice(Math.min(i, detalles.length), 0, quitado);
+        claveEnvioPendiente = null;
+        dibujarTicket();
+    });
 }
 
 // Le pone un extra a un renglon de lo nuevo
@@ -541,7 +568,7 @@ function lineaEnviada(d) {
         botones = '<button class="btn outline compact" onclick="abrirCancelarProducto(' + d.idDetalle + ')">CANCELAR</button>';
     }
     return '<div class="ticket-line' + (d.estado === 'CANCELADO' ? ' cancelled' : '') + '">'
-            + '<div class="ticket-line-top"><strong>' + textoCantidad(d.cantidad, d.unidadVenta) + ' x ' + escapar(d.producto.toUpperCase()) + '</strong>' + etiqueta + '</div>'
+            + '<div class="ticket-line-top"><strong>' + textoCantidad(d.cantidad, d.unidadVenta) + ' x ' + escapar(d.producto) + '</strong>' + etiqueta + '</div>'
             + (descripcion ? '<small>' + escapar(descripcion) + '</small>' : '')
             + '<div class="ticket-line-top"><strong>' + dinero(d.importe) + '</strong>' + botones + '</div>'
             + '</div>';
@@ -560,7 +587,7 @@ function lineaNueva(d, i) {
             + '<button onclick="cambiarCantidad(' + i + ', 1)" aria-label="Uno mas">+</button>'
             + '<button class="remove" onclick="quitarDetalle(' + i + ')" aria-label="Quitar">x</button></div>';
     return '<div class="ticket-line">'
-            + '<div class="ticket-line-top"><strong>' + textoCantidad(d.cantidad, d.unidad) + ' x ' + escapar(d.nombre.toUpperCase()) + '</strong>' + etiqueta + '</div>'
+            + '<div class="ticket-line-top"><strong>' + textoCantidad(d.cantidad, d.unidad) + ' x ' + escapar(d.nombre) + '</strong>' + etiqueta + '</div>'
             + (descripcion ? '<small>' + escapar(descripcion) + '</small>' : '')
             + '<div class="ticket-line-top"><strong>' + dinero(importeDetalle(d)) + '</strong>' + botones + '</div>'
             + '</div>';
@@ -618,7 +645,8 @@ function dibujarAcciones() {
                 + (enviando ? 'ENVIANDO...' : 'ENVIAR A COCINA') + '</button>';
     }
     if (pedidoActual && pedidoActual.estado === 'ABIERTO') {
-        html += '<button class="btn secondary full" onclick="confirmarCerrar()" ' + (detalles.length ? 'disabled' : '') + '>CERRAR PEDIDO / SOLICITAR CUENTA</button>';
+        // Ambar porque la mesa se pone ambar al pedir la cuenta
+        html += '<button class="btn amber full" onclick="confirmarCerrar()" ' + (detalles.length ? 'disabled' : '') + '>PEDIR LA CUENTA</button>';
     }
     // El cajero o el administrador pueden ir directo a cobrar
     if (pedidoActual && pedidoActual.estado === 'POR_COBRAR' && esCajero) {
@@ -853,15 +881,38 @@ async function quitarEnviado(idDetalle) {
 }
 
 // Campo de PIN que se agrega a las ventanas cuando quien esta en sesion es mesero
+/**
+ * Teclado de PIN en pantalla para que autorice un cajero o administrador.
+ * Solo aparece si quien cancela es mesero; si es cajero o administrador
+ * el mismo autoriza y no se le pide nada (RN-03).
+ */
 function campoPin() {
     if (esCajero) {
         return '';
     }
-    return '<div class="field"><label for="pinAutoriza">PIN de cajero o administrador</label>'
-            + '<input id="pinAutoriza" type="password" inputmode="numeric" maxlength="6" autocomplete="off"></div>';
+    const teclas = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Borrar', '0', ''];
+    return '<div class="field"><label>PIN de cajero o administrador</label>'
+            + '<input id="pinAutoriza" type="hidden" value="">'
+            + '<div class="pin-puntos" id="pinPuntos"><span></span><span></span><span></span><span></span></div>'
+            + '<div class="teclado-pin">' + teclas.map(t => t === ''
+                ? '<span></span>'
+                : '<button type="button" onclick="teclaPin(\'' + t + '\')">' + t + '</button>').join('') + '</div></div>';
 }
 
-// Lo que se escribio en el campo de PIN, o null si no hay campo
+// Una tecla del teclado de PIN: agrega el numero o borra el ultimo
+function teclaPin(tecla) {
+    const campo = document.getElementById('pinAutoriza');
+    if (tecla === 'Borrar') {
+        campo.value = campo.value.slice(0, -1);
+    } else if (campo.value.length < 4) {
+        campo.value += tecla;
+    }
+    // Se pintan los puntitos llenos, sin mostrar los numeros
+    document.querySelectorAll('#pinPuntos span').forEach((p, n) => p.classList.toggle('lleno', n < campo.value.length));
+    marcarCampo('pinAutoriza', '');
+}
+
+// Lo que se escribio en el teclado de PIN, o null si no hay teclado
 function leerPin() {
     const campo = document.getElementById('pinAutoriza');
     return campo ? campo.value.trim() : null;
@@ -909,12 +960,16 @@ function confirmarCerrar() {
     const activos = pedidoActual.detalles.filter(d => d.estado !== 'CANCELADO');
     const piezas = activos.reduce((s, d) => s + d.cantidad, 0);
     const pendientes = pedidoActual.pendientesCocina || 0;
+    // Resumen corto de lo que se va a cobrar, para revisarlo con el cliente
+    const lineas = activos.map(d => '<div><span>' + textoCantidad(d.cantidad, d.unidadVenta) + ' x ' + escapar(d.producto)
+            + '</span><strong>' + dinero(d.importe) + '</strong></div>').join('');
     abrirModal(
-            '<div class="modal-basic"><h2>Cerrar pedido</h2>'
-            + '<p>' + piezas + ' productos - total <strong>' + dinero(calcularTotal()) + '</strong>. '
-            + 'El pedido queda <strong>por cobrar</strong> y ya no se le pueden agregar productos.</p>'
-            + (pendientes ? '<p class="warning-bar">Ojo: la cocina todavia tiene ' + pendientes + ' producto(s) sin terminar.</p>' : '')
-            + '<button class="btn primary full" onclick="cerrarPedido()">SI, SOLICITAR CUENTA</button>'
+            '<div class="modal-basic"><h2>Pedir la cuenta - ' + escapar(textoDestino()) + '</h2>'
+            + '<div class="resumen-lineas">' + lineas + '</div>'
+            + '<div class="total-grande"><span>TOTAL</span><strong>' + dinero(calcularTotal()) + '</strong></div>'
+            + (pendientes ? '<p class="warning-bar">Faltan ' + pendientes + ' producto(s) en la parrilla. Revisa con el parrillero antes de pedir la cuenta.</p>' : '')
+            + '<p>El pedido pasa a <strong>por cobrar</strong> y ya no se le pueden agregar productos.</p>'
+            + '<button class="btn amber full" onclick="cerrarPedido()">PEDIR LA CUENTA</button>'
             + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
 }
 
@@ -947,19 +1002,35 @@ function abrirCancelar() {
     // El mesero necesita el PIN de un cajero o administrador (RN-03)
     abrirModal(
             '<div class="modal-basic"><h2>Cancelar pedido</h2>'
-            + '<p>Los productos que no esten listos se quitan de la cola de cocina. El pedido no se borra, queda como cancelado.</p>'
-            + '<div class="field"><label for="motivo">Motivo</label>'
-            + '<select id="motivo" onchange="marcarCampo(\'motivoOtro\', \'\')"><option>El cliente se retiro</option><option>Error en la captura</option>'
-            + '<option>Producto agotado</option><option>Otro</option></select></div>'
-            + '<div class="field"><label for="motivoOtro">Detalle del motivo (obligatorio si elegiste Otro)</label><input id="motivoOtro" maxlength="100"></div>'
+            + '<p>Lo que no este listo sale de la parrilla. El pedido no se borra: queda como cancelado.</p>'
+            + '<div class="field"><label>Motivo</label><input id="motivo" type="hidden" value="">'
+            + '<div class="custom-options">' + MOTIVOS_CANCELACION.map(m =>
+                '<button type="button" class="custom-option" data-motivo="' + m + '" onclick="elegirMotivo(\'' + m + '\')">' + m + '</button>').join('')
+            + '</div></div>'
+            + '<div class="field" id="campoOtro" hidden><label for="motivoOtro">Escribe el motivo</label><input id="motivoOtro" maxlength="100"></div>'
             + campoPin()
-            + '<button class="btn primary full" onclick="confirmarCancelacion()">CONFIRMAR CANCELACION</button>'
+            + '<button class="btn danger full" onclick="confirmarCancelacion()">CANCELAR PEDIDO</button>'
             + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
+}
+
+// Motivos que mas se usan; "Otro" pide escribirlo
+const MOTIVOS_CANCELACION = ['El cliente se retiro', 'Error en la captura', 'Producto agotado', 'Otro'];
+
+// Marca el motivo elegido (verde con palomita) y muestra el campo si es "Otro"
+function elegirMotivo(motivo) {
+    document.getElementById('motivo').value = motivo;
+    document.querySelectorAll('[data-motivo]').forEach(b => b.classList.toggle('active', b.dataset.motivo === motivo));
+    document.getElementById('campoOtro').hidden = motivo !== 'Otro';
+    marcarCampo('motivo', '');
 }
 
 // Revisa el motivo y el PIN antes de mandar la cancelacion
 function confirmarCancelacion() {
     const elegido = document.getElementById('motivo').value;
+    if (!elegido) {
+        marcarCampo('motivo', 'Elige un motivo');
+        return;
+    }
     const otro = document.getElementById('motivoOtro').value.trim();
     // "Otro" a secas no le dice nada a nadie; se pide que expliquen
     if (elegido === 'Otro' && !otro) {

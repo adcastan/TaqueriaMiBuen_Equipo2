@@ -34,10 +34,11 @@ Abajo se ven los pedidos para llevar y a domicilio activos.
                 </div>
             </div>
 
+            <%-- Leyenda en una sola linea: el color de la franja de cada mesa dice su estado --%>
             <div class="table-legend">
-                <div class="legend">VERDE = LIBRE<small>TOCA PARA ABRIR PEDIDO</small></div>
-                <div class="legend red">ROJO = OCUPADA<small>TOCA PARA VER LA CUENTA</small></div>
-                <div class="legend amber">AMBAR = POR COBRAR<small>YA PIDIERON LA CUENTA</small></div>
+                <span class="legend">Libre</span>
+                <span class="legend red">Ocupada</span>
+                <span class="legend amber">Pidio la cuenta</span>
             </div>
 
             <section class="table-grid" id="mapaMesas" aria-label="Mapa de mesas">
@@ -52,6 +53,11 @@ Abajo se ven los pedidos para llevar y a domicilio activos.
             </section>
         </main>
 
+        <%-- En celular las dos acciones mas usadas quedan abajo, al alcance del pulgar --%>
+        <nav class="barra-inferior" aria-label="Pedidos sin mesa">
+            <button class="btn secondary" onclick="nuevoPedido('LLEVAR')">Para llevar</button>
+            <button class="btn secondary" onclick="nuevoPedido('DOMICILIO')">A domicilio</button>
+        </nav>
         <%@include file="WEB-INF/partes/pie.jspf" %>
         <script src="js/comun.js"></script>
         <script src="js/mesas.js"></script>

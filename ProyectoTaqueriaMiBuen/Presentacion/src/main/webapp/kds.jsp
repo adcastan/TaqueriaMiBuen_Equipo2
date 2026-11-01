@@ -14,7 +14,7 @@ Solo pueden entrar COCINERO y ADMINISTRADOR (lo revisa FiltroSeguridad).
         <link rel="icon" href="assets/brand.svg" type="image/svg+xml">
         <link rel="stylesheet" href="estilos.css">
     </head>
-    <body data-terminal="1">
+    <body data-terminal="1" class="pantalla-cocina">
         <%@include file="WEB-INF/partes/encabezado.jspf" %>
 
         <main class="workspace" id="main">
@@ -34,6 +34,8 @@ Solo pueden entrar COCINERO y ADMINISTRADOR (lo revisa FiltroSeguridad).
                 </div>
             </div>
 
+            <%-- Total por producto de todas las comandas abiertas, para cocinar en tanda --%>
+            <div class="en-plancha" id="enPlancha"></div>
             <section class="cola-cocina" id="cola" aria-label="Detalles pendientes">
                 <div class="empty">Cargando cola...</div>
             </section>

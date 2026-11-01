@@ -43,26 +43,27 @@ function dibujarMesas(mesas) {
     }
     // Cada estado tiene su color: verde libre, rojo ocupada, ambar falta cobrar
     const vistas = {
-        DISPONIBLE: {clase: '', texto: 'LIBRE'},
-        OCUPADA: {clase: 'occupied', texto: 'OCUPADA'},
-        PENDIENTE_PAGO: {clase: 'pending', texto: 'POR COBRAR'}
+        DISPONIBLE: {clase: '', texto: 'Libre'},
+        OCUPADA: {clase: 'occupied', texto: 'Ocupada'},
+        PENDIENTE_PAGO: {clase: 'pending', texto: 'Pidio la cuenta'}
     };
     mesasActuales = mesas;
     contenedor.innerHTML = mesas.map(mesa => {
         const vista = vistas[mesa.estado] || vistas.OCUPADA;
         const numero = String(mesa.numero).padStart(2, '0');
-        let detalle = 'TOCAR PARA ABRIR';
+        // Solo lo necesario: libre dice para cuantos es; ocupada, cuanto lleva
+        let detalle = 'Para ' + mesa.capacidad + ' personas';
         if (mesa.juntoAMesa) {
             // Mesa pegada a otra: se ve del mismo color con la leyenda (RN-13)
-            detalle = 'JUNTO A MESA ' + mesa.juntoAMesa;
+            detalle = 'Junto a mesa ' + mesa.juntoAMesa;
         } else if (mesa.estado !== 'DISPONIBLE' && mesa.total !== undefined) {
-            detalle = 'CUENTA ' + dinero(mesa.total) + (mesa.cuentas > 1 ? ' - ' + mesa.cuentas + ' CUENTAS' : '');
+            detalle = dinero(mesa.total) + (mesa.cuentas > 1 ? ' · ' + mesa.cuentas + ' cuentas' : '');
         }
         return '<button class="table-tile ' + vista.clase + (mesa.juntoAMesa ? ' joined' : '') + '" onclick="seleccionarMesa(' + mesa.idMesa + ')">'
                 + '<span class="table-number">' + numero + '</span>'
-                + '<strong>MESA ' + mesa.numero + '</strong>'
+                + '<strong>Mesa ' + mesa.numero + '</strong>'
                 + '<span class="table-state">' + vista.texto + '</span>'
-                + '<small>' + detalle + (mesa.juntoAMesa ? '' : ' - ' + mesa.capacidad + ' PERS.') + '</small>'
+                + '<small>' + detalle + '</small>'
                 + '</button>';
     }).join('');
 }
