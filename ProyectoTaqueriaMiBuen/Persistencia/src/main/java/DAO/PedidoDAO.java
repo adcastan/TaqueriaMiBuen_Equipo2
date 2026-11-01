@@ -1,6 +1,7 @@
 package DAO;
 
 import Conexion.JPAUtil;
+import Entidades.CambioMesa;
 import Entidades.DatosEntrega;
 import Entidades.DetallePedido;
 import Entidades.Mesa;
@@ -13,7 +14,9 @@ import Enums.EstadoPedido;
 import IAccesoDatos.IPedidoDAO;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -61,8 +64,17 @@ public class PedidoDAO implements IPedidoDAO {
                 // Paso 1 del orden de bloqueo: la mesa. Si dos meseros pican la misma
                 // mesa libre al mismo tiempo, el segundo espera aqui y luego ve que ya esta ocupada
                 mesa = mesaDAO.bloquearParaActualizar(em, local.getMesa().getIdMesa());
+                // Si la mesa esta pegada a otra, los pedidos van en la principal del grupo
+                if (mesa.estaUnida()) {
+                    throw new IllegalStateException("La mesa " + mesa.getNumero() + " esta junto a la mesa "
+                            + mesa.getMesaPrincipal().getNumero() + "; abre el pedido en esa mesa");
+                }
                 if (mesa.getEstado() != EstadoMesa.DISPONIBLE && !cuentaSeparada) {
                     throw new IllegalStateException("La mesa " + mesa.getNumero() + " ya esta ocupada");
+                }
+                // Una mesa que ya pidio la cuenta no recibe cuentas nuevas
+                if (mesa.getEstado() == EstadoMesa.PENDIENTE_PAGO) {
+                    throw new IllegalStateException("La mesa " + mesa.getNumero() + " ya pidio la cuenta");
                 }
                 local.setMesa(mesa);
             }
@@ -72,6 +84,8 @@ public class PedidoDAO implements IPedidoDAO {
                 detalle.setOrdenColaPedido(turno);
                 detalle.setRonda(1);
                 detalle.setFechaEnvio(ahora);
+                // Bebidas y cosas de cocina no van al monitor de parrilla: quedan listas (RN-08)
+                detalle.marcarListoSiNoPasaPorParrilla();
                 turno++;
             }
             pedido.registrarCambio(pedido.getUsuario());
@@ -139,6 +153,8 @@ public class PedidoDAO implements IPedidoDAO {
                 if (quien != null) {
                     detalle.setAgregadoPor(quien);
                 }
+                // Igual que en la primera ronda: lo que no es de parrilla queda listo
+                detalle.marcarListoSiNoPasaPorParrilla();
                 turno++;
                 pedido.agregarDetalle(detalle);
                 em.persist(detalle);
@@ -230,25 +246,108 @@ public class PedidoDAO implements IPedidoDAO {
 
     /**
      * Pedido activo de una mesa. Si la mesa tiene cuentas separadas se regresa
-     * la mas nueva; las demas se ven en "Pedidos activos".
+     * la mas nueva; para ver todas se usa listarActivosPorMesa.
      */
     @Override
     public Pedido buscarActivoPorMesa(int idMesa) {
+        List<Pedido> lista = listarActivosPorMesa(idMesa);
+        return lista.isEmpty() ? null : lista.get(lista.size() - 1);
+    }
+
+    /**
+     * Todas las cuentas vivas de una mesa (abiertas o por cobrar), de la mas
+     * vieja a la mas nueva. Si la mesa esta junto a otra, se buscan en la mesa
+     * principal del grupo, que es donde viven los pedidos (RN-13 y RN-14).
+     */
+    @Override
+    public List<Pedido> listarActivosPorMesa(int idMesa) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
-            List<PedidoLocal> lista = em.createQuery(
+            Mesa mesa = em.find(Mesa.class, idMesa);
+            if (mesa == null) {
+                return new ArrayList<>();
+            }
+            int idPrincipal = mesa.estaUnida() ? mesa.getMesaPrincipal().getIdMesa() : idMesa;
+            List<Pedido> lista = em.createQuery(
                     "SELECT p FROM PedidoLocal p WHERE p.mesa.idMesa = :idMesa "
-                    + "AND p.estado IN (:abierto, :porCobrar) ORDER BY p.fechaApertura DESC", PedidoLocal.class)
-                    .setParameter("idMesa", idMesa)
+                    + "AND p.estado IN (:abierto, :porCobrar) ORDER BY p.fechaApertura", Pedido.class)
+                    .setParameter("idMesa", idPrincipal)
                     .setParameter("abierto", EstadoPedido.ABIERTO)
                     .setParameter("porCobrar", EstadoPedido.POR_COBRAR)
                     .getResultList();
-            if (lista.isEmpty()) {
-                return null;
+            for (Pedido pedido : lista) {
+                cargarDetalles(pedido);
             }
-            PedidoLocal pedido = lista.get(0);
+            return lista;
+        } finally {
+            em.close();
+        }
+    }
+
+    /**
+     * Pasa una cuenta de una mesa a otra (RN-12). Se mueve TODO: productos,
+     * rondas y lo que esta en la parrilla (el monitor lee la mesa del pedido,
+     * asi que en el siguiente refresco ya sale con la mesa nueva).
+     *
+     * Reglas:
+     * - el pedido tiene que ser local y seguir vivo (abierto o por cobrar);
+     * - la mesa destino tiene que estar libre y sola (no pegada a otra);
+     * - si la mesa de origen es parte de un grupo, primero se separan las mesas.
+     *
+     * Para no trabarse con otro mesero se bloquean las dos mesas en orden de
+     * id (la menor primero) y despues el pedido, igual que en todo el DAO.
+     */
+    @Override
+    public Pedido cambiarMesa(int idPedido, int idMesaDestino, Usuario usuario) {
+        Integer idOrigen = mesaDAO.idMesaDelPedido(idPedido);
+        if (idOrigen == null) {
+            throw new IllegalArgumentException("Solo los pedidos para comer aqui tienen mesa");
+        }
+        if (idOrigen == idMesaDestino) {
+            throw new IllegalArgumentException("El pedido ya esta en esa mesa");
+        }
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            em.getTransaction().begin();
+            // Orden fijo de bloqueo: primero la mesa con el id mas chico
+            int primera = Math.min(idOrigen, idMesaDestino);
+            int segunda = Math.max(idOrigen, idMesaDestino);
+            Mesa m1 = mesaDAO.bloquearParaActualizar(em, primera);
+            Mesa m2 = mesaDAO.bloquearParaActualizar(em, segunda);
+            Mesa origen = m1.getIdMesa() == idOrigen ? m1 : m2;
+            Mesa destino = m1.getIdMesa() == idOrigen ? m2 : m1;
+            if (destino == null) {
+                throw new IllegalArgumentException("No existe la mesa destino");
+            }
+            if (!destino.estaDisponible() || destino.estaUnida()) {
+                throw new IllegalStateException("La mesa " + destino.getNumero() + " no esta libre");
+            }
+            if (mesaDAO.tieneMesasUnidas(em, origen.getIdMesa())) {
+                throw new IllegalStateException("La mesa " + origen.getNumero()
+                        + " esta junto a otras mesas; separalas antes de cambiar la cuenta");
+            }
+            PedidoLocal pedido = em.find(PedidoLocal.class, idPedido, LockModeType.PESSIMISTIC_WRITE);
+            if (pedido.getEstado() != EstadoPedido.ABIERTO && pedido.getEstado() != EstadoPedido.POR_COBRAR) {
+                throw new IllegalStateException("El pedido ya no esta activo");
+            }
+            Usuario quien = usuarioEn(em, usuario);
+            pedido.setMesa(destino);
+            pedido.registrarCambio(quien);
+            // Queda en la bitacora de donde a donde se paso, quien y cuando
+            if (quien != null) {
+                em.persist(new CambioMesa(pedido, origen, destino, quien));
+            }
+            // Las dos mesas se vuelven a pintar con la misma regla de siempre
+            mesaDAO.recalcularEstado(em, origen);
+            mesaDAO.recalcularEstado(em, destino);
+            em.getTransaction().commit();
             cargarDetalles(pedido);
             return pedido;
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new RuntimeException("No se pudo cambiar de mesa: " + e.getMessage(), e);
         } finally {
             em.close();
         }
@@ -278,7 +377,7 @@ public class PedidoDAO implements IPedidoDAO {
      * pedido sigue abierto; si el cocinero ya lo empezo, la entidad lo rechaza.
      */
     @Override
-    public Pedido cambiarCantidad(int idPedido, int idDetalle, int cantidad, Usuario usuario) {
+    public Pedido cambiarCantidad(int idPedido, int idDetalle, BigDecimal cantidad, Usuario usuario) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
             em.getTransaction().begin();

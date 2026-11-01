@@ -153,6 +153,87 @@ public class MesaDAO implements IMesaDAO{
         } else {
             mesa.setEstado(EstadoMesa.DISPONIBLE);
         }
+        // Las mesas pegadas a esta toman su mismo color. Si la principal quedo
+        // libre (todo pagado o cancelado), el grupo se deshace solo (RN-13)
+        for (Mesa unida : mesasUnidas(em, mesa.getIdMesa())) {
+            if (mesa.getEstado() == EstadoMesa.DISPONIBLE) {
+                unida.separar();
+            } else {
+                unida.setEstado(mesa.getEstado());
+            }
+        }
+    }
+
+    /**
+     * Pega una mesa libre a la mesa principal de un grupo (RN-13). La mesa
+     * principal es donde estan (o van a estar) las cuentas; la otra solo toma
+     * su color y en el mapa sale "Junto a mesa N".
+     * Bloquea las dos mesas en orden de id para no trabarse con otro mesero.
+     */
+    @Override
+    public void juntarMesas(int idPrincipal, int idMesa) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            em.getTransaction().begin();
+            Mesa m1 = bloquearParaActualizar(em, Math.min(idPrincipal, idMesa));
+            Mesa m2 = bloquearParaActualizar(em, Math.max(idPrincipal, idMesa));
+            Mesa principal = m1.getIdMesa() == idPrincipal ? m1 : m2;
+            Mesa mesa = m1.getIdMesa() == idPrincipal ? m2 : m1;
+            // Una mesa que ya es principal de otro grupo no se puede pegar a otra
+            if (tieneMesasUnidas(em, mesa.getIdMesa())) {
+                throw new IllegalStateException("La mesa " + mesa.getNumero() + " ya tiene mesas juntas");
+            }
+            // La regla de la mesa libre y sola vive en la entidad
+            mesa.juntarCon(principal);
+            em.getTransaction().commit();
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new RuntimeException("No se pudieron juntar las mesas: " + e.getMessage(), e);
+        } finally {
+            em.close();
+        }
+    }
+
+    /**
+     * Despega una mesa de su grupo y la deja libre. Las cuentas siguen en la
+     * mesa principal, asi que no se pierde nada.
+     */
+    @Override
+    public void separarMesa(int idMesa) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            em.getTransaction().begin();
+            Mesa mesa = bloquearParaActualizar(em, idMesa);
+            if (mesa == null || !mesa.estaUnida()) {
+                throw new IllegalStateException("Esa mesa no esta junto a otra");
+            }
+            mesa.separar();
+            em.getTransaction().commit();
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new RuntimeException("No se pudo separar la mesa: " + e.getMessage(), e);
+        } finally {
+            em.close();
+        }
+    }
+
+    /**
+     * true si alguna mesa esta pegada a esta (o sea, esta es principal de un grupo).
+     */
+    @Override
+    public boolean tieneMesasUnidas(EntityManager em, int idMesa) {
+        return !mesasUnidas(em, idMesa).isEmpty();
+    }
+
+    // Mesas que apuntan a esta como su principal, dentro de la transaccion abierta
+    private List<Mesa> mesasUnidas(EntityManager em, int idPrincipal) {
+        return em.createQuery("SELECT m FROM Mesa m WHERE m.mesaPrincipal.idMesa = :id ORDER BY m.numero", Mesa.class)
+                .setParameter("id", idPrincipal)
+                .getResultList();
     }
 
     /**

@@ -39,4 +39,13 @@ public interface IMesaDAO {
 
     // Id de la mesa de un pedido local, o null si el pedido no es de mesa.
     public Integer idMesaDelPedido(int idPedido);
+
+    // Pega una mesa libre a la mesa principal de un grupo
+    void juntarMesas(int idPrincipal, int idMesa);
+
+    // Despega una mesa de su grupo y la deja libre
+    void separarMesa(int idMesa);
+
+    // true si otra mesa esta pegada a esta
+    boolean tieneMesasUnidas(EntityManager em, int idMesa);
 }

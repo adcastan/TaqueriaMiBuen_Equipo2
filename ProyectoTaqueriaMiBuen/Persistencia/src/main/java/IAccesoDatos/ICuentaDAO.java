@@ -2,6 +2,7 @@ package IAccesoDatos;
 
 import Entidades.Cuenta;
 import Enums.Rol;
+import java.util.Set;
 import java.util.List;
 
 /**
@@ -26,5 +27,5 @@ public interface ICuentaDAO {
     public List<Cuenta> listar();
 
     // Cambia el rol de la cuenta de un usuario.
-    public void actualizarRol(int idUsuario, Rol rol);
+    public void actualizarRoles(int idUsuario, Set<Rol> roles);
 }

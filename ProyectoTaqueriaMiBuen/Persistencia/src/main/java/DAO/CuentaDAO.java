@@ -6,6 +6,7 @@ import Enums.Rol;
 import IAccesoDatos.ICuentaDAO;
 import jakarta.persistence.EntityManager;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Acceso a datos de las cuentas de usuario.
@@ -77,9 +78,9 @@ public class CuentaDAO implements ICuentaDAO {
         }
     }
 
-    // Cambia el rol de un empleado (por ejemplo de mesero a cajero)
+    // Cambia los roles de un empleado (por ejemplo, que tambien pueda estar en caja)
     @Override
-    public void actualizarRol(int idUsuario, Rol rol) {
+    public void actualizarRoles(int idUsuario, Set<Rol> roles) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
             em.getTransaction().begin();
@@ -87,7 +88,9 @@ public class CuentaDAO implements ICuentaDAO {
                     "SELECT c FROM Cuenta c WHERE c.usuario.idUsuario = :id", Cuenta.class)
                     .setParameter("id", idUsuario)
                     .getSingleResult();
-            cuenta.setRol(rol);
+            // Se vacia la lista y se llena con los nuevos; JPA actualiza la tabla cuenta_rol
+            cuenta.getRoles().clear();
+            cuenta.getRoles().addAll(roles);
             em.getTransaction().commit();
         } catch (Exception e) {
             if (em.getTransaction().isActive()) {

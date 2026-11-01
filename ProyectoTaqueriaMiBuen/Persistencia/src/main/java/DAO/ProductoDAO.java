@@ -77,7 +77,7 @@ public class ProductoDAO implements IProductoDAO {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
             return em.createQuery(
-                    "SELECT p FROM Producto p WHERE p.disponible = true ORDER BY p.categoria.orden, p.nombre",
+                    "SELECT p FROM Producto p WHERE p.disponible = true AND p.activo = true ORDER BY p.categoria.orden, p.nombre",
                     Producto.class)
                     .getResultList();
         } finally {
@@ -96,7 +96,7 @@ public class ProductoDAO implements IProductoDAO {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
             return em.createQuery(
-                    "SELECT p.idProducto FROM Producto p WHERE p.idProducto IN :ids AND p.disponible = false",
+                    "SELECT p.idProducto FROM Producto p WHERE p.idProducto IN :ids AND (p.disponible = false OR p.activo = false)",
                     Integer.class)
                     .setParameter("ids", ids)
                     .getResultList();
@@ -136,7 +136,7 @@ public class ProductoDAO implements IProductoDAO {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
             List<Producto> productos = em.createQuery(
-                    "SELECT p FROM Producto p ORDER BY p.categoria.orden, p.nombre", Producto.class)
+                    "SELECT p FROM Producto p WHERE p.activo = true ORDER BY p.categoria.orden, p.nombre", Producto.class)
                     .getResultList();
             for (Producto p : productos) {
                 p.getExtras().size();

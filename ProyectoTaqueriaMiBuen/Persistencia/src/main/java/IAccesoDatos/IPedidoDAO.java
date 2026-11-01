@@ -4,6 +4,7 @@ import Entidades.DetallePedido;
 import Entidades.Pedido;
 import Entidades.Usuario;
 import Enums.EstadoPedido;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -45,11 +46,17 @@ public interface IPedidoDAO {
     // Pedido abierto o por cobrar de la mesa, o null.
     Pedido buscarActivoPorMesa(int idMesa);
 
+    // Todas las cuentas vivas de una mesa (o de su mesa principal si esta junto a otra)
+    List<Pedido> listarActivosPorMesa(int idMesa);
+
+    // Pasa una cuenta a otra mesa libre y lo deja en la bitacora cambio_mesa
+    Pedido cambiarMesa(int idPedido, int idMesaDestino, Usuario usuario);
+
     // Cambia el estado del pedido.
     void actualizarEstado(int idPedido, EstadoPedido estado);
 
     // Cambia la cantidad de un producto que sigue en cola.
-    Pedido cambiarCantidad(int idPedido, int idDetalle, int cantidad, Usuario usuario);
+    Pedido cambiarCantidad(int idPedido, int idDetalle, BigDecimal cantidad, Usuario usuario);
 
     // Quita un producto que sigue en cola (se marca cancelado, no se borra).
     Pedido quitarDetalle(int idPedido, int idDetalle, String motivo, Usuario usuario);
