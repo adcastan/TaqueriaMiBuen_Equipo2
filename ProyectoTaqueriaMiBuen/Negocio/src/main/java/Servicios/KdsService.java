@@ -16,8 +16,10 @@ import java.util.List;
  */
 public class KdsService implements IKdsService {
 
-    // Si el monitor no ha pedido la cola en este tiempo se toma como desconectado
-    private static final int SEGUNDOS_SIN_CONEXION = 30;
+    // Si el monitor no ha pedido la cola en este tiempo se toma como desconectado y se
+    // imprime el ticket de respaldo. El monitor pregunta cada segundo, asi que 5 segundos
+    // son 5 consultas perdidas seguidas (lo que dicen la Arquitectura y el CU-02, flujo 2.2.15)
+    private static final int SEGUNDOS_SIN_CONEXION = 5;
 
     private final IKdsDAO kdsDAO = new KdsDAO();
 
