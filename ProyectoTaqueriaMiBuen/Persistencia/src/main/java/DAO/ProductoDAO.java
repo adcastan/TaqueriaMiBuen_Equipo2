@@ -2,6 +2,7 @@ package DAO;
 
 import Conexion.JPAUtil;
 import Entidades.Producto;
+import IAccesoDatos.IProductoDAO;
 import jakarta.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
@@ -11,8 +12,10 @@ import java.util.List;
  *
  * @author Equipo 2
  */
-public class ProductoDAO {
+public class ProductoDAO implements IProductoDAO {
 
+    // Guarda un producto nuevo del menu junto con sus extras
+    @Override
     public void registrar(Producto producto) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -29,6 +32,8 @@ public class ProductoDAO {
         }
     }
 
+    // Busca un producto por su nombre exacto; null si no existe
+    @Override
     public Producto buscarPorNombre(String nombre) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -45,6 +50,7 @@ public class ProductoDAO {
     /**
      * Busca el producto y carga tambien los extras que admite.
      */
+    @Override
     public Producto buscarConExtras(String nombre) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
@@ -66,11 +72,12 @@ public class ProductoDAO {
     /**
      * Productos que se pueden vender, en el orden del menu.
      */
+    @Override
     public List<Producto> listarDisponibles() {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
             return em.createQuery(
-                    "SELECT p FROM Producto p WHERE p.disponible = true ORDER BY p.categoria.orden, p.nombre",
+                    "SELECT p FROM Producto p WHERE p.disponible = true AND p.activo = true ORDER BY p.categoria.orden, p.nombre",
                     Producto.class)
                     .getResultList();
         } finally {
@@ -81,6 +88,7 @@ public class ProductoDAO {
     /**
      * De la lista de ids, regresa los productos que ya no estan disponibles.
      */
+    @Override
     public List<Integer> buscarNoDisponibles(List<Integer> ids) {
         if (ids == null || ids.isEmpty()) {
             return new ArrayList<>();
@@ -88,10 +96,89 @@ public class ProductoDAO {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
             return em.createQuery(
-                    "SELECT p.idProducto FROM Producto p WHERE p.idProducto IN :ids AND p.disponible = false",
+                    "SELECT p.idProducto FROM Producto p WHERE p.idProducto IN :ids AND (p.disponible = false OR p.activo = false)",
                     Integer.class)
                     .setParameter("ids", ids)
                     .getResultList();
+        } finally {
+            em.close();
+        }
+    }
+
+    /**
+     * Busca un producto por su id y carga sus extras. Lo usa el servicio de
+     * pedidos para armar cada detalle.
+     *
+     * @param idProducto
+     * @return
+     */
+    @Override
+    public Producto buscarPorId(int idProducto) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            Producto producto = em.find(Producto.class, idProducto);
+            if (producto != null) {
+                producto.getExtras().size(); // Antes de cerrar el EntityManager, se leen.
+            }
+            return producto;
+        } finally {
+            em.close();
+        }
+    }
+
+    /**
+     * Todo el menu con sus extras, ordenado por categoria. 
+     * Los agotados se muestran deshabilitados en la pantalla.
+     * @return
+     */
+    @Override
+    public List<Producto> listarConExtras() {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            List<Producto> productos = em.createQuery(
+                    "SELECT p FROM Producto p WHERE p.activo = true ORDER BY p.categoria.orden, p.nombre", Producto.class)
+                    .getResultList();
+            for (Producto p : productos) {
+                p.getExtras().size();
+            }
+            return productos;
+        } finally {
+            em.close();
+        }
+    }
+
+    // Guarda los cambios de un producto (nombre, precio, categoria, extras)
+    @Override
+    public void actualizar(Producto producto) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            em.getTransaction().begin();
+            em.merge(producto);
+            em.getTransaction().commit();
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new RuntimeException("No se pudo actualizar el producto: " + e.getMessage(), e);
+        } finally {
+            em.close();
+        }
+    }
+
+    // Da de baja o vuelve a dar de alta un producto en el menu sin borrarlo
+    @Override
+    public void cambiarDisponible(int idProducto, boolean disponible) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            em.getTransaction().begin();
+            Producto producto = em.find(Producto.class, idProducto);
+            producto.setDisponible(disponible);
+            em.getTransaction().commit();
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new RuntimeException("No se pudo cambiar la disponibilidad: " + e.getMessage(), e);
         } finally {
             em.close();
         }

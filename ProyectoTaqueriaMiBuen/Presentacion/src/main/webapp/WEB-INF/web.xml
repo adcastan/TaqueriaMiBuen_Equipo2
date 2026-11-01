@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0">
+    <display-name>Taqueria Mi Buen</display-name>
+    <!-- Pagina que abre al entrar a http://localhost:8080/TaqueriaMiBuen/ -->
+    <welcome-file-list>
+        <welcome-file>login.jsp</welcome-file>
+    </welcome-file-list>
+
+    <!-- La sesion dura un turno de 8 horas -->
+    <session-config>
+        <session-timeout>480</session-timeout>
+    </session-config>
+</web-app>

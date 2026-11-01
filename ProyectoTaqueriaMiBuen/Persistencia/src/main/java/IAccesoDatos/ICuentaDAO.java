@@ -1,0 +1,31 @@
+package IAccesoDatos;
+
+import Entidades.Cuenta;
+import Enums.Rol;
+import java.util.Set;
+import java.util.List;
+
+/**
+ * Operaciones de base de datos de las cuentas de usuario. 
+ * La implementa CuentaDAO. 
+ * Las demas capas usan esta interfaz y no la clase directamente.
+ *
+ * @author Equipo 2
+ */
+public interface ICuentaDAO {
+
+    // Guarda la cuenta y su usuario.
+    public void registrar(Cuenta cuenta);
+
+    // Cuenta de un usuario o null.
+    public Cuenta buscarPorUsuario(int idUsuario);
+
+    // Cuentas de usuarios activos, se usan para validar el PIN.
+    public List<Cuenta> buscarActivas();
+    
+    // Todas las cuentas con su usuario, activos y dados de baja.
+    public List<Cuenta> listar();
+
+    // Cambia el rol de la cuenta de un usuario.
+    public void actualizarRoles(int idUsuario, Set<Rol> roles);
+}

@@ -1,0 +1,1269 @@
+/*
+ * pedido.js - Script de tomarPedido.jsp (diagrama de clases de presentacion).
+ * Maneja el menu, la lista temporal de detalles y las acciones del pedido:
+ * enviar a cocina, cambiar o quitar lo que sigue en cola, cerrar (pedir la
+ * cuenta) y cancelar.
+ *
+ * Una idea para entender todo el archivo: hay DOS listas.
+ *   - pedidoActual.detalles: lo que ya esta guardado en el servidor y ya se mando
+ *     a cocina, con su estado (en cola, en preparacion, listo o cancelado).
+ *   - detalles: lo "Nuevo", lo que el mesero esta capturando y todavia no manda.
+ * Al darle "Enviar a cocina" lo nuevo se manda como una ronda y pasa a la primera lista.
+ *
+ * Equipo 2
+ */
+
+// Los pedidos de DiDi Food y Uber Eats se cobran con el precio de apps (RN-11)
+const CANALES_APP = ['DIDI_FOOD', 'UBER_EATS'];
+// Nombres bonitos de cada canal para la pantalla
+const NOMBRES_CANAL = {MESA: 'Mesa', MOSTRADOR: 'Mostrador', TELEFONO: 'Telefono', WHATSAPP: 'WhatsApp',
+    DIDI_FOOD: 'DiDi Food', UBER_EATS: 'Uber Eats'};
+// Lo de kilo se ajusta de cuarto en cuarto con los botones + y -
+const PASO_KILO = 0.25;
+// Cada cuanto se vuelve a pedir el pedido para ver como va la cocina
+const INTERVALO_REFRESCO = 3000;
+const parametros = new URLSearchParams(window.location.search);
+// Una cuenta puede tener varios roles; llegan como "CAJERO,MESERO"
+const rolesUsuario = (document.body.dataset.roles || '').split(',');
+const esCajero = rolesUsuario.includes('CAJERO') || rolesUsuario.includes('ADMINISTRADOR');
+
+// Datos de la pantalla
+let tipo = parametros.get('tipo') || 'LOCAL';      // LOCAL, LLEVAR o DOMICILIO
+let idMesa = parametros.get('mesa') ? Number(parametros.get('mesa')) : null;
+const cuentaSeparada = parametros.get('separada') === '1';
+let menu = [];                 // categorias con productos (GET /api/menu)
+let pedidoActual = null;       // pedido que ya esta en la BD (si existe)
+let detalles = [];             // detalles temporales que aun no se envian a cocina
+let datosEntrega = null;       // solo para domicilio
+let canal = 'MESA';            // por donde llego el pedido; decide el precio
+let cuentasMesa = [];          // cuentas vivas de la mesa (si hay cuentas separadas)
+let categoriaActiva = 'TODAS';
+let textoBusqueda = '';
+
+// Clave del envio que esta en camino. Se conserva si falla la red para que
+// "Reintentar" mande la misma y el servidor no duplique la comanda.
+let claveEnvioPendiente = null;
+let enviando = false;          // evita el doble clic en "Enviar a cocina"
+
+// Datos de la ventana para personalizar un producto
+let productoElegido = null;
+let cantidadElegida = 1;
+let extrasElegidos = [];
+
+// Textos y colores de cada estado de cocina
+const ESTADOS_COCINA = {
+    PENDIENTE: {texto: 'EN COLA', clase: ''},
+    EN_PREPARACION: {texto: 'EN PREPARACION', clase: 'amber'},
+    LISTO: {texto: 'LISTO', clase: 'green'},
+    CANCELADO: {texto: 'CANCELADO', clase: 'red'}
+};
+
+/**
+ * Pide el menu a MenuServlet y dibuja las categorias y productos.
+ */
+async function cargarMenu() {
+    menu = await api('api/menu');
+    dibujarCategorias();
+    dibujarProductos();
+}
+
+// Revisa si hay un pedido abierto que cargar (pedido existente o mesa ocupada)
+async function cargarPedido() {
+    if (parametros.get('pedido')) {
+        pedidoActual = await api('api/pedidos?id=' + parametros.get('pedido'));
+    } else if (idMesa !== null && !cuentaSeparada) {
+        // Si la mesa esta libre el servlet regresa null
+        pedidoActual = await api('api/pedidos?idMesa=' + idMesa);
+    }
+    if (pedidoActual) {
+        tipo = pedidoActual.tipo;
+        idMesa = pedidoActual.idMesa || null;
+    }
+    if (tipo === 'DOMICILIO' && !pedidoActual) {
+        datosEntrega = JSON.parse(sessionStorage.getItem('datosEntrega') || 'null');
+        if (!datosEntrega) {
+            window.location.href = 'datosEntrega.jsp';
+        }
+    }
+    // El canal: el del pedido si ya existe; si es nuevo, el que toca segun el tipo
+    if (pedidoActual) {
+        canal = pedidoActual.canal;
+    } else if (tipo === 'LLEVAR') {
+        canal = parametros.get('canal') || 'MOSTRADOR';
+    } else if (tipo === 'DOMICILIO') {
+        canal = (datosEntrega && datosEntrega.canal) || 'TELEFONO';
+    } else {
+        canal = 'MESA';
+    }
+    await cargarCuentasMesa();
+}
+
+// Trae las cuentas vivas de la mesa para poder brincar entre cuentas separadas (RN-14)
+async function cargarCuentasMesa() {
+    cuentasMesa = [];
+    if (tipo === 'LOCAL' && idMesa !== null) {
+        try {
+            cuentasMesa = await api('api/pedidos?cuentasMesa=' + idMesa);
+        } catch (e) {
+            cuentasMesa = [];
+        }
+    }
+}
+
+// true si el pedido viene de DiDi Food o Uber Eats
+function esDeApp() {
+    return CANALES_APP.includes(canal);
+}
+
+// Precio que se le cobra al cliente: el de apps si el pedido viene de una app
+function precioDe(producto) {
+    return esDeApp() ? Number(producto.precioApps) : Number(producto.precio);
+}
+
+// true si el producto se vende por kilo (acepta 0.25, 0.5, etc.)
+function esKilo(producto) {
+    return producto && producto.unidadVenta === 'KILO';
+}
+
+// "3" para piezas y "0.5 kg" para lo de kilo
+function textoCantidad(cantidad, unidad) {
+    return unidad === 'KILO' ? Number(cantidad) + ' kg' : String(Number(cantidad));
+}
+
+// Costo de envio del domicilio: el que ya tiene el pedido o el que se capturo
+function costoEnvio() {
+    if (tipo !== 'DOMICILIO') return 0;
+    if (pedidoActual) return Number(pedidoActual.costoEnvio || 0);
+    return Number((datosEntrega && datosEntrega.costoEnvio) || 0);
+}
+
+/**
+ * Para llevar: el cajero indica por donde llego. Si cambia a una app, lo que
+ * ya estaba capturado se vuelve a calcular con el precio de apps.
+ */
+function elegirCanal(nuevo) {
+    canal = nuevo;
+    for (const d of detalles) {
+        d.precio = precioDe(buscarProducto(d.idProducto));
+    }
+    claveEnvioPendiente = null;
+    dibujarCanales();
+    dibujarProductos();
+    dibujarTicket();
+}
+
+// Pinta los botones de canal (solo para un pedido para llevar nuevo)
+function dibujarCanales() {
+    const contenedor = document.getElementById('canales');
+    if (!contenedor) return;
+    const opciones = ['MOSTRADOR', 'TELEFONO', 'WHATSAPP', 'DIDI_FOOD', 'UBER_EATS'];
+    contenedor.innerHTML = opciones.map(c =>
+        '<button type="button" class="custom-option ' + (canal === c ? 'active' : '') + '" onclick="elegirCanal(\'' + c + '\')">'
+        + NOMBRES_CANAL[c] + '</button>').join('')
+        + (esDeApp() ? '<small class="muted">Se usa el precio de apps.</small>' : '');
+}
+
+/**
+ * Cada pocos segundos se vuelve a pedir el pedido para que el mesero vea
+ * cuando la cocina empieza o termina algo, sin tener que recargar.
+ * No toca lo que esta capturando (la lista "detalles").
+ */
+async function refrescarPedido() {
+    if (!pedidoActual || enviando || document.hidden) {
+        return;
+    }
+    try {
+        pedidoActual = await api('api/pedidos?id=' + pedidoActual.idPedido);
+        dibujarTicket();
+    } catch (e) {
+        // Si se cae la red un ratito no pasa nada, en el siguiente intento se actualiza
+    }
+}
+
+// ---------- Menu ----------
+
+// Junta los productos de todas las categorias en una sola lista
+function todosLosProductos() {
+    const lista = [];
+    for (const categoria of menu) {
+        for (const producto of categoria.productos) {
+            lista.push({...producto, categoria: categoria.nombre});
+        }
+    }
+    return lista;
+}
+
+// Busca un producto del menu por su id
+function buscarProducto(idProducto) {
+    return todosLosProductos().find(p => p.idProducto === idProducto);
+}
+
+// Pinta los botones de categorias arriba de los productos
+function dibujarCategorias() {
+    const botones = ['TODAS', ...menu.map(c => c.nombre)];
+    document.getElementById('categorias').innerHTML = botones.map(nombre =>
+        '<button class="category-tab ' + (nombre === categoriaActiva ? 'active' : '') + '" '
+                + 'onclick="elegirCategoria(\'' + escapar(nombre) + '\')">' + escapar(nombre.toUpperCase()) + '</button>'
+    ).join('');
+}
+
+// Cambia la categoria que se esta viendo
+function elegirCategoria(nombre) {
+    categoriaActiva = nombre;
+    dibujarCategorias();
+    dibujarProductos();
+}
+
+// Se llama mientras el mesero escribe en el buscador
+function filtrarProductos(texto) {
+    textoBusqueda = texto.trim().toLowerCase();
+    dibujarProductos();
+}
+
+// Pinta las tarjetas de productos segun la categoria y lo que se busco
+function dibujarProductos() {
+    const productos = todosLosProductos().filter(p =>
+        (categoriaActiva === 'TODAS' || p.categoria === categoriaActiva)
+                && p.nombre.toLowerCase().includes(textoBusqueda));
+
+    const contenedor = document.getElementById('productos');
+    if (productos.length === 0) {
+        contenedor.innerHTML = '<div class="empty">No hay productos con ese nombre</div>';
+        return;
+    }
+    // Los agotados se muestran pero no se pueden elegir
+    contenedor.innerHTML = productos.map(p =>
+        '<button class="product-card" ' + (p.disponible ? '' : 'disabled') + ' onclick="abrirPersonalizar(' + p.idProducto + ')">'
+                + '<span class="product-badge">' + (p.disponible ? escapar(p.categoria) : 'SE ACABO') + '</span>'
+                + '<strong class="product-price">' + dinero(precioDe(p)) + (esKilo(p) ? ' / kg' : '') + '</strong>'
+                + '<span class="product-body">'
+                + '<img class="product-photo" src="' + imagenProducto(p.categoria) + '" alt="" width="65" height="65">'
+                + '<strong class="product-name">' + escapar(p.nombre) + '</strong>'
+                + '<span class="product-description">' + escapar(p.piezas && p.piezas.length
+                        ? 'Incluye: ' + p.piezas.join(' + ') : (p.descripcion || '')) + '</span>'
+                + '</span>'
+                + '<span class="product-add">' + (p.disponible ? 'TOCAR PARA AGREGAR' : 'NO DISPONIBLE') + '</span>'
+                + '</button>'
+    ).join('');
+}
+
+// ---------- Ventana para elegir cantidad, extras y nota ----------
+
+// Al tocar un producto: si se puede personalizar abre la ventana, si no lo agrega directo
+function abrirPersonalizar(idProducto) {
+    if (!pedidoAbierto()) {
+        mostrarAviso('Este pedido ya no acepta productos', true);
+        return;
+    }
+    productoElegido = buscarProducto(idProducto);
+    // Lo de kilo empieza en medio kilo; lo de pieza en 1
+    cantidadElegida = esKilo(productoElegido) ? 0.5 : 1;
+    extrasElegidos = [];
+    // Flujo 2.2.2 paso 6: lo que no tiene nada que personalizar (un refresco) entra directo.
+    // Lo de kilo siempre abre la ventana porque hay que decir cuanto
+    if (productoElegido.extras.length === 0 && !esProductoConNota(productoElegido) && !esKilo(productoElegido)) {
+        agregarDetalle(productoElegido.idProducto, 1);
+        dibujarTicket();
+        bajarAlFinalDelTicket();
+        mostrarAviso('1 x ' + productoElegido.nombre + ' agregado');
+        return;
+    }
+    dibujarPersonalizar();
+}
+
+// Las bebidas no llevan nota de cocina; lo demas si (sin cebolla, bien dorado...)
+function esProductoConNota(producto) {
+    return !(producto.categoria || '').toLowerCase().includes('bebida');
+}
+
+// Pinta la ventana de cantidad, extras y nota para cocina
+function dibujarPersonalizar() {
+    const p = productoElegido;
+    // Las opciones sin costo ("Sin cebolla") van aparte de los extras que se cobran,
+    // asi no sale un confuso "+ $0.00"
+    const boton = e => '<button type="button" class="custom-option ' + (extrasElegidos.includes(e.idExtra) ? 'active' : '') + '" '
+            + 'onclick="alternarExtra(' + e.idExtra + ')">' + escapar(e.nombre)
+            + (Number(e.precio) > 0 ? '<span class="tag">+ ' + dinero(e.precio) + '</span>' : '') + '</button>';
+    const sinCosto = p.extras.filter(e => Number(e.precio) === 0);
+    const conCosto = p.extras.filter(e => Number(e.precio) > 0);
+    let extrasHtml = '';
+    if (sinCosto.length) {
+        extrasHtml += '<section class="modal-section"><div class="modal-section-title"><strong>Preparacion</strong><small>Sin costo</small></div>'
+                + '<div class="custom-options">' + sinCosto.map(boton).join('') + '</div></section>';
+    }
+    if (conCosto.length) {
+        extrasHtml += '<section class="modal-section"><div class="modal-section-title"><strong>Extras</strong><small>Se cobran aparte</small></div>'
+                + '<div class="custom-options">' + conCosto.map(boton).join('') + '</div></section>';
+    }
+    const notaAnterior = document.getElementById('notaCocina') ? document.getElementById('notaCocina').value : '';
+
+    abrirModal(
+            '<header class="modal-header">'
+            + '<span class="title-icon"><img src="' + imagenProducto(p.categoria) + '" alt="" width="30" height="30"></span>'
+            + '<div><h2>' + escapar(p.nombre) + '</h2><p><strong>' + dinero(precioDe(p)) + (esKilo(p) ? ' el kilo' : ' c/u') + '</strong></p></div>'
+            + '<button class="icon-btn" onclick="cerrarModal()" aria-label="Cerrar">X</button>'
+            + '</header>'
+            + '<div class="modal-body">'
+            + (esKilo(p) ? panelKilos() : panelPiezas())
+            + extrasHtml
+            + '<div class="field"><label for="notaCocina">Nota para cocina (opcional)</label>'
+            + '<input id="notaCocina" maxlength="150" placeholder="Ej. sin cebolla, bien dorado" value="' + escapar(notaAnterior) + '">'
+            + '<div class="notas-rapidas">' + NOTAS_RAPIDAS.map(n =>
+                '<button type="button" onclick="agregarNotaRapida(\'' + n + '\')">' + n + '</button>').join('') + '</div>'
+            + '<small>Maximo 150 letras</small></div>'
+            + '</div>'
+            + '<footer class="modal-footer">'
+            + '<button class="btn secondary" onclick="cerrarModal()">CANCELAR</button>'
+            + '<button class="btn primary" onclick="confirmarProducto()">AGREGAR AL PEDIDO <strong>' + dinero(importeElegido()) + '</strong></button>'
+            + '</footer>');
+}
+
+// Cantidad por piezas: botones grandes - y + (de 1 a 99)
+function panelPiezas() {
+    return '<div class="quantity-panel"><div><strong>CANTIDAD</strong><small>Cuantas piezas se preparan</small></div>'
+            + '<div class="large-qty">'
+            + '<button onclick="cambiarCantidadElegida(-1)" ' + (cantidadElegida <= 1 ? 'disabled' : '') + '>-</button>'
+            + '<span>' + cantidadElegida + '<small>PIEZAS</small></span>'
+            + '<button onclick="cambiarCantidadElegida(1)" ' + (cantidadElegida >= 99 ? 'disabled' : '') + '>+</button>'
+            + '</div></div>';
+}
+
+// Cantidad por kilo: botones rapidos de 1/4, 1/2 y 1 kg, y un campo para otra cantidad
+function panelKilos() {
+    const rapidos = [[0.25, '1/4 KG'], [0.5, '1/2 KG'], [1, '1 KG']];
+    return '<div class="quantity-panel"><div><strong>CANTIDAD</strong><small>En kilos</small></div>'
+            + '<div class="custom-options">' + rapidos.map(r =>
+                '<button type="button" class="custom-option ' + (cantidadElegida === r[0] ? 'active' : '') + '" onclick="elegirKilos(' + r[0] + ')">' + r[1] + '</button>'
+            ).join('') + '</div>'
+            + '<div class="field"><label for="otrosKilos">Otra cantidad (kg)</label>'
+            + '<input id="otrosKilos" type="number" inputmode="decimal" min="0.05" max="20" step="0.05" value="' + cantidadElegida + '" '
+            + 'onchange="elegirKilos(Number(this.value))"></div></div>';
+}
+
+// Notas que mas se piden; un toque las agrega a la nota para no teclear
+const NOTAS_RAPIDAS = ['Bien dorado', 'Termino medio', 'Bien cocido', 'Poca sal'];
+
+// Agrega la nota rapida al campo (separada por coma) sin pasarse de 150 letras
+function agregarNotaRapida(texto) {
+    const campo = document.getElementById('notaCocina');
+    const actual = campo.value.trim();
+    if (actual.toLowerCase().includes(texto.toLowerCase())) return;
+    const nuevo = actual ? actual + ', ' + texto.toLowerCase() : texto;
+    campo.value = nuevo.slice(0, 150);
+}
+
+// Botones + y - de la ventana; la cantidad se queda entre 1 y 99
+function cambiarCantidadElegida(cambio) {
+    cantidadElegida = Math.max(1, Math.min(99, cantidadElegida + cambio));
+    dibujarPersonalizar();
+}
+
+// Elige los kilos (se redondea a gramos para no arrastrar decimales raros)
+function elegirKilos(kilos) {
+    if (!(kilos > 0) || kilos > 20) {
+        mostrarAviso('Escribe una cantidad de 0.05 a 20 kg', true);
+        return;
+    }
+    cantidadElegida = Math.round(kilos * 1000) / 1000;
+    dibujarPersonalizar();
+}
+
+// Prende o apaga un extra en la ventana
+function alternarExtra(idExtra) {
+    if (extrasElegidos.includes(idExtra)) {
+        extrasElegidos = extrasElegidos.filter(id => id !== idExtra);
+    } else {
+        extrasElegidos.push(idExtra);
+    }
+    dibujarPersonalizar();
+}
+
+// (precio unitario + extras) x cantidad, la misma formula que usa Java
+function importeElegido() {
+    let precio = precioDe(productoElegido);
+    for (const extra of productoElegido.extras) {
+        if (extrasElegidos.includes(extra.idExtra))
+            precio += extra.precio;
+    }
+    return precio * cantidadElegida;
+}
+
+// Pasa lo que se eligio en la ventana a la lista temporal del pedido
+function confirmarProducto() {
+    const nota = document.getElementById('notaCocina').value.trim();
+    // Si escribieron los kilos y no le dieron Enter, se toma lo que dice el campo
+    const campoKilos = document.getElementById('otrosKilos');
+    if (campoKilos && Number(campoKilos.value) > 0) {
+        cantidadElegida = Math.round(Number(campoKilos.value) * 1000) / 1000;
+    }
+    const i = agregarDetalle(productoElegido.idProducto, cantidadElegida);
+    for (const idExtra of extrasElegidos) {
+        agregarExtra(i, idExtra);
+    }
+    detalles[i].notaCocina = nota;
+    cerrarModal();
+    dibujarTicket();
+    bajarAlFinalDelTicket();
+    mostrarAviso(textoCantidad(cantidadElegida, productoElegido.unidadVenta) + ' x ' + productoElegido.nombre + ' agregado');
+}
+
+// El ticket tiene su propia barrita para desplazarse; al agregar algo se baja
+// hasta el final para que el mesero vea lo que acaba de poner
+function bajarAlFinalDelTicket() {
+    const lista = document.getElementById('lineasTicket');
+    lista.scrollTop = lista.scrollHeight;
+}
+
+// ---------- Lista temporal de detalles (lo "Nuevo") ----------
+
+/**
+ * Agrega un detalle temporal y regresa su posicion en la lista.
+ * Cualquier cambio a lo nuevo invalida la clave del envio anterior, porque ya
+ * no es el mismo envio.
+ */
+function agregarDetalle(idProducto, cantidad) {
+    const producto = buscarProducto(idProducto);
+    detalles.push({
+        idProducto: producto.idProducto,
+        nombre: producto.nombre,
+        precio: precioDe(producto),
+        unidad: producto.unidadVenta,
+        cantidad: cantidad,
+        notaCocina: '',
+        extras: [],
+        agotado: false
+    });
+    claveEnvioPendiente = null;
+    return detalles.length - 1;
+}
+
+// Quita un renglon de lo nuevo (todavia no se habia mandado)
+function quitarDetalle(i) {
+    const quitado = detalles.splice(i, 1)[0];
+    claveEnvioPendiente = null;
+    dibujarTicket();
+    // En vez de preguntar "¿Seguro?", se quita y se ofrece DESHACER por 5 segundos
+    mostrarDeshacer('Se quito ' + textoCantidad(quitado.cantidad, quitado.unidad) + ' x ' + quitado.nombre, () => {
+        detalles.splice(Math.min(i, detalles.length), 0, quitado);
+        claveEnvioPendiente = null;
+        dibujarTicket();
+    });
+}
+
+// Le pone un extra a un renglon de lo nuevo
+function agregarExtra(i, idExtra) {
+    const extra = buscarProducto(detalles[i].idProducto).extras.find(e => e.idExtra === idExtra);
+    detalles[i].extras.push(extra);
+}
+
+// Botones + y - de un renglon nuevo; si llega a cero se quita
+function cambiarCantidad(i, cambio) {
+    // Lo de kilo sube y baja de cuarto en cuarto
+    const paso = detalles[i].unidad === 'KILO' ? PASO_KILO : 1;
+    const nueva = Math.round((detalles[i].cantidad + cambio * paso) * 1000) / 1000;
+    if (nueva <= 0) {
+        quitarDetalle(i);
+        return;
+    }
+    if (nueva > 99) {
+        mostrarAviso('La cantidad maxima por producto es 99', true);
+        return;
+    }
+    detalles[i].cantidad = nueva;
+    claveEnvioPendiente = null;
+    dibujarTicket();
+}
+
+// (precio + extras) x cantidad de un renglon nuevo
+function importeDetalle(d) {
+    const costoExtras = d.extras.reduce((suma, e) => suma + e.precio, 0);
+    return d.cantidad * (d.precio + costoExtras);
+}
+
+/**
+ * Total = lo que ya se envio (sin cancelados, eso lo calcula el servidor)
+ * + lo nuevo + envio si es a domicilio.
+ */
+function calcularTotal() {
+    const enviado = pedidoActual ? pedidoActual.subtotal : 0;
+    const nuevo = detalles.reduce((suma, d) => suma + importeDetalle(d), 0);
+    return enviado + nuevo + costoEnvio();
+}
+
+// ---------- Ticket ----------
+
+// true si el pedido todavia acepta productos (o si ni siquiera existe aun)
+function pedidoAbierto() {
+    return !pedidoActual || pedidoActual.estado === 'ABIERTO';
+}
+
+// Texto corto de a donde va el pedido: la mesa, para llevar o el domicilio
+function textoDestino() {
+    if (pedidoActual)
+        return pedidoActual.destino;
+    if (tipo === 'LOCAL')
+        return 'Mesa ' + idMesa;
+    if (tipo === 'LLEVAR')
+        return 'Para llevar';
+    return 'A domicilio: ' + (datosEntrega ? datosEntrega.nombreCliente : '');
+}
+
+// Pinta el titulo, el folio y los campos que pide cada tipo de pedido
+function dibujarEncabezado() {
+    // Si no es de mesa se agrega por donde llego (ej. "Para llevar: Ana - DiDi Food")
+    const destino = textoDestino() + (canal !== 'MESA' ? ' - ' + NOMBRES_CANAL[canal] : '');
+    document.getElementById('titulo').textContent = pedidoActual ? destino : 'Nuevo pedido: ' + destino;
+    let subtitulo = cuentaSeparada ? 'Cuenta separada' : 'Nuevo pedido';
+    if (pedidoActual) {
+        subtitulo = 'Folio ' + pedidoActual.folio + (cuentaSeparada ? ' - cuenta separada' : '')
+                + ' - abrio ' + (pedidoActual.abiertoPor || '')
+                + (pedidoActual.modificadoPor ? ' - ultimo cambio: ' + pedidoActual.modificadoPor + ' ' + pedidoActual.horaModificacion : '');
+    }
+    // Arriba solo quien lo abrio y a que hora; el folio va chico dentro del ticket
+    if (pedidoActual) {
+        subtitulo = (cuentaSeparada ? 'Cuenta separada · ' : '') + 'Abrio ' + (pedidoActual.abiertoPor || '') + ' · ' + (pedidoActual.hora || '');
+    }
+    document.getElementById('subtitulo').textContent = subtitulo;
+    document.getElementById('destino').textContent = 'ORDENANDO: ' + destino.toUpperCase();
+    document.getElementById('tituloTicket').textContent = 'Cuenta';
+    document.getElementById('folio').textContent = pedidoActual ? pedidoActual.folio : 'NUEVO';
+
+    // Las personas, el nombre y el canal se capturan en la ventana "Abrir pedido";
+    // en la pantalla solo queda un resumen y el boton "Cambiar datos"
+    document.getElementById('bloquePersonas').hidden = true;
+    document.getElementById('bloqueCliente').hidden = true;
+    const nuevoConVentana = !pedidoActual && (tipo === 'LOCAL' || tipo === 'LLEVAR');
+    document.getElementById('btnCambiarDatos').hidden = !nuevoConVentana;
+    if (nuevoConVentana && tipo === 'LOCAL') {
+        document.getElementById('subtitulo').textContent = 'Comer aqui · ' + personasElegidas + ' personas';
+    } else if (nuevoConVentana) {
+        const nombre = document.getElementById('nombreCliente').value.trim();
+        document.getElementById('subtitulo').textContent = 'Para llevar' + (nombre ? ' · ' + nombre : '');
+    }
+    const entrega = pedidoActual && tipo === 'DOMICILIO' ? pedidoActual : datosEntrega;
+    const bloqueEntrega = document.getElementById('bloqueEntrega');
+    bloqueEntrega.hidden = tipo !== 'DOMICILIO' || !entrega;
+    if (entrega) {
+        bloqueEntrega.innerHTML = '<strong>Entregar a:</strong> ' + escapar(entrega.nombreCliente)
+                + ' - Tel. ' + escapar(entrega.telefono) + '<br>' + escapar(entrega.direccion)
+                + (entrega.referencias ? ' (' + escapar(entrega.referencias) + ')' : '')
+                + '<br>Envio: ' + dinero(costoEnvio())
+                + ' - Lo lleva: ' + (entrega.tipoRepartidor === 'EXTERNO' ? 'servicio externo' : 'empleado')
+                + (entrega.repartidor ? ' (' + escapar(entrega.repartidor) + ')' : '');
+    }
+}
+
+// Renglon de algo que ya esta en el servidor (ya se mando a cocina)
+function lineaEnviada(d) {
+    let descripcion = d.extras.length ? 'Extras: ' + d.extras.join(', ') : '';
+    if (d.notaCocina)
+        descripcion += (descripcion ? ' - ' : '') + 'Nota: ' + d.notaCocina;
+    if (d.estado === 'CANCELADO' && d.motivoCancelacion)
+        descripcion += (descripcion ? ' - ' : '') + 'Cancelado: ' + d.motivoCancelacion
+                + (d.canceladoPor ? ' (' + d.canceladoPor + ')' : '');
+
+    const estado = ESTADOS_COCINA[d.estado] || ESTADOS_COCINA.PENDIENTE;
+    const etiqueta = '<span class="pill ' + estado.clase + '">' + estado.texto + '</span>';
+
+    let botones = '';
+    if (pedidoAbierto() && d.estado === 'PENDIENTE') {
+        // Flujo 2.2.4: lo que sigue en cola se puede cambiar o quitar
+        botones = '<div class="qty-control">'
+                + '<button onclick="cambiarCantidadEnviada(' + d.idDetalle + ', ' + (Number(d.cantidad) - pasoDe(d.unidadVenta)) + ')" aria-label="Uno menos">-</button>'
+                + '<span>' + textoCantidad(d.cantidad, d.unidadVenta) + '</span>'
+                + '<button onclick="cambiarCantidadEnviada(' + d.idDetalle + ', ' + (Number(d.cantidad) + pasoDe(d.unidadVenta)) + ')" aria-label="Uno mas">+</button>'
+                + '<button class="remove" onclick="confirmarQuitarEnviado(' + d.idDetalle + ')" aria-label="Quitar">x</button></div>';
+    } else if (pedidoAbierto() && (d.estado === 'EN_PREPARACION' || d.estado === 'LISTO')) {
+        // Flujo 2.2.10: ya se esta preparando; solo un cajero lo quita
+        botones = '<button class="btn outline compact" onclick="abrirCancelarProducto(' + d.idDetalle + ')">CANCELAR</button>';
+    }
+    return '<div class="ticket-line' + (d.estado === 'CANCELADO' ? ' cancelled' : '') + '">'
+            + '<div class="ticket-line-top"><strong>' + textoCantidad(d.cantidad, d.unidadVenta) + ' x ' + escapar(d.producto) + '</strong>' + etiqueta + '</div>'
+            + (descripcion ? '<small>' + escapar(descripcion) + '</small>' : '')
+            + '<div class="ticket-line-top"><strong>' + dinero(d.importe) + '</strong>' + botones + '</div>'
+            + '</div>';
+}
+
+// Renglon de lo "Nuevo" que todavia no se manda
+function lineaNueva(d, i) {
+    let descripcion = d.extras.length ? 'Extras: ' + d.extras.map(e => e.nombre).join(', ') : '';
+    if (d.notaCocina)
+        descripcion += (descripcion ? ' - ' : '') + 'Nota: ' + d.notaCocina;
+    const etiqueta = d.agotado
+            ? '<span class="pill red">NO DISPONIBLE</span>'
+            : '<span class="pill amber">NUEVO</span>';
+    const botones = '<div class="qty-control">'
+            + '<button onclick="cambiarCantidad(' + i + ', -1)" aria-label="Uno menos">-</button><span>' + textoCantidad(d.cantidad, d.unidad) + '</span>'
+            + '<button onclick="cambiarCantidad(' + i + ', 1)" aria-label="Uno mas">+</button>'
+            + '<button class="remove" onclick="quitarDetalle(' + i + ')" aria-label="Quitar">x</button></div>';
+    return '<div class="ticket-line">'
+            + '<div class="ticket-line-top"><strong>' + textoCantidad(d.cantidad, d.unidad) + ' x ' + escapar(d.nombre) + '</strong>' + etiqueta + '</div>'
+            + (descripcion ? '<small>' + escapar(descripcion) + '</small>' : '')
+            + '<div class="ticket-line-top"><strong>' + dinero(importeDetalle(d)) + '</strong>' + botones + '</div>'
+            + '</div>';
+}
+
+/**
+ * Arma el ticket agrupado por rondas (flujo 2.2.4 paso 2): primero lo que ya
+ * se mando, ronda por ronda con la hora, y hasta abajo lo nuevo.
+ */
+function dibujarTicket() {
+    dibujarEncabezado();
+    const enviados = pedidoActual ? pedidoActual.detalles : [];
+    const rondas = {};
+    for (const d of enviados) {
+        (rondas[d.ronda] = rondas[d.ronda] || []).push(d);
+    }
+    let html = '';
+    for (const numero of Object.keys(rondas).map(Number).sort((a, b) => a - b)) {
+        html += '<div class="ticket-round">RONDA ' + numero + ' - ' + escapar(rondas[numero][0].hora || '') + '</div>'
+                + rondas[numero].map(lineaEnviada).join('');
+    }
+    if (detalles.length) {
+        html += '<div class="ticket-round">POR ENVIAR</div>' + detalles.map(lineaNueva).join('');
+    }
+    // Al volver a pintar, la barrita del ticket se regresaria hasta arriba; se guarda donde iba
+    const lista = document.getElementById('lineasTicket');
+    const posicion = lista.scrollTop;
+    lista.innerHTML = html
+            || '<div class="empty"><strong>El pedido empieza aqui</strong>Toca un producto del menu para agregarlo.</div>';
+    lista.scrollTop = posicion;
+
+    // Lo de kilo cuenta como un producto (no como 0.5 productos)
+    const cuenta = (d, unidad) => unidad === 'KILO' ? 1 : Number(d.cantidad);
+    const piezasEnviadas = enviados.filter(d => d.estado !== 'CANCELADO').reduce((s, d) => s + cuenta(d, d.unidadVenta), 0);
+    const piezas = piezasEnviadas + detalles.reduce((s, d) => s + cuenta(d, d.unidad), 0);
+    document.getElementById('textoSubtotal').textContent = piezas + ' productos';
+    document.getElementById('subtotal').textContent = dinero(calcularTotal() - costoEnvio());
+    document.getElementById('lineaEnvio').hidden = tipo !== 'DOMICILIO';
+    document.getElementById('total').textContent = dinero(calcularTotal());
+    document.getElementById('resumenPendientes').textContent = detalles.length + ' por enviar';
+
+    const estados = {ABIERTO: 'Abierto - en cocina', POR_COBRAR: 'Por cobrar', PAGADO: 'Pagado', CANCELADO: 'Cancelado'};
+    document.getElementById('estadoTicket').textContent = pedidoActual ? estados[pedidoActual.estado] : 'Pendiente de enviar a cocina';
+
+    dibujarAcciones();
+}
+
+// Pinta los botones de abajo del ticket segun el estado del pedido y el rol
+function dibujarAcciones() {
+    let html = '';
+    if (pedidoAbierto()) {
+        // Flujo 2.2.8: sin productos nuevos el boton queda apagado
+        html += '<button class="btn primary full" id="botonEnviar" onclick="enviarACocina()" '
+                + (detalles.length && !enviando ? '' : 'disabled') + '>'
+                + (enviando ? 'ENVIANDO...' : 'ENVIAR A COCINA') + '</button>';
+    }
+    if (pedidoActual && pedidoActual.estado === 'ABIERTO') {
+        // Ambar porque la mesa se pone ambar al pedir la cuenta
+        html += '<button class="btn amber full" onclick="confirmarCerrar()" ' + (detalles.length ? 'disabled' : '') + '>PEDIR LA CUENTA</button>';
+    }
+    // El cajero o el administrador pueden ir directo a cobrar
+    if (pedidoActual && pedidoActual.estado === 'POR_COBRAR' && esCajero) {
+        html += '<a class="btn primary full" href="cobro.jsp?pedido=' + pedidoActual.idPedido + '">COBRAR PEDIDO</a>';
+    }
+    // Lo que se usa poco (cambiar o juntar mesa, cuenta separada, cancelar) va en
+    // una sola ventana de opciones: asi el ticket no se llena de botones
+    if (pedidoActual && (pedidoActual.estado === 'ABIERTO' || pedidoActual.estado === 'POR_COBRAR')) {
+        html += '<button class="btn secondary full" onclick="abrirOpciones()">'
+                + (tipo === 'LOCAL' ? 'OPCIONES DE LA MESA' : 'OPCIONES DEL PEDIDO') + '</button>';
+    }
+    // Si la mesa tiene varias cuentas, botones para brincar de una a otra (RN-14)
+    if (cuentasMesa.length > 1) {
+        html += '<div class="ticket-round">CUENTAS DE ESTA MESA</div>' + cuentasMesa.map((c, n) =>
+            '<a class="btn ' + (pedidoActual && c.idPedido === pedidoActual.idPedido ? 'primary' : 'outline') + ' full" '
+            + 'href="tomarPedido.jsp?pedido=' + c.idPedido + '">CUENTA ' + (n + 1) + ' - ' + dinero(c.total) + '</a>').join('');
+    }
+
+    document.getElementById('accionesTicket').innerHTML = html;
+
+    let nota = 'Los productos nuevos se mandan a la cola de cocina al enviar.';
+    if (pedidoAbierto() && detalles.length === 0) nota = 'Agregue al menos un producto';
+    if (pedidoActual && pedidoActual.estado === 'POR_COBRAR') nota = 'El pedido ya pidio la cuenta. El cobro se hace en caja.';
+    if (pedidoActual && pedidoActual.estado === 'PAGADO') nota = 'El pedido ya fue pagado.';
+    if (pedidoActual && pedidoActual.estado === 'CANCELADO') nota = 'El pedido fue cancelado.';
+    if (detalles.length && pedidoActual) nota = 'Envia los productos nuevos antes de cerrar el pedido.';
+    if (detalles.some(d => d.agotado)) nota = 'Quita o cambia los productos marcados como no disponibles.';
+    document.getElementById('notaTicket').textContent = nota;
+}
+
+// ---------- Campos obligatorios (flujo 2.2.9) ----------
+
+// Pone el campo en rojo con su mensaje; con mensaje vacio lo regresa a la normalidad
+function marcarCampo(idCampo, mensaje) {
+    const campo = document.getElementById(idCampo);
+    const contenedor = campo.closest('.field, .guest-count');
+    let aviso = contenedor.querySelector('.field-error');
+    if (!mensaje) {
+        contenedor.classList.remove('invalid');
+        if (aviso) aviso.remove();
+        return;
+    }
+    contenedor.classList.add('invalid');
+    if (!aviso) {
+        aviso = document.createElement('small');
+        aviso.className = 'field-error';
+        contenedor.appendChild(aviso);
+    }
+    aviso.textContent = mensaje;
+    campo.focus();
+}
+
+// Revisa lo que pide el subflujo "Tipar pedido" antes de mandar algo
+function validarTipo() {
+    if (pedidoActual) {
+        return true;
+    }
+    if (tipo === 'LOCAL') {
+        const personas = Number(document.getElementById('numeroPersonas').value);
+        // Si algo falta se vuelve a abrir la ventana para completarlo
+        if (!Number.isInteger(personas) || personas < 1 || personas > 20) {
+            abrirVentanaPedido();
+            return false;
+        }
+    }
+    if (tipo === 'LLEVAR' && document.getElementById('nombreCliente').value.trim() === '') {
+        abrirVentanaPedido();
+        return false;
+    }
+    return true;
+}
+
+// ---------- Acciones con el servidor ----------
+
+// Convierte la lista temporal a la forma de DetalleDTO que espera Java
+function detallesParaEnviar() {
+    return detalles.map(d => ({
+            idProducto: d.idProducto,
+            cantidad: d.cantidad,
+            notaCocina: d.notaCocina,
+            idsExtras: d.extras.map(e => e.idExtra)
+        }));
+}
+
+/**
+ * Si el pedido es nuevo hace POST /api/pedidos con el PedidoDTO.
+ * Si ya existe hace POST /api/pedidos/{id}/detalles solo con lo nuevo.
+ * En los dos casos se manda la claveEnvio: si la red falla y se reintenta,
+ * va la misma clave y el servidor no duplica nada.
+ */
+async function enviarACocina() {
+    if (detalles.length === 0) {
+        mostrarAviso('Agregue al menos un producto', true);
+        return;
+    }
+    if (enviando || !validarTipo()) {
+        return;
+    }
+    if (!claveEnvioPendiente) {
+        claveEnvioPendiente = nuevaClaveEnvio();
+    }
+    enviando = true;
+    dibujarAcciones();
+    let resultado;
+    try {
+        if (pedidoActual) {
+            resultado = await api('api/pedidos/' + pedidoActual.idPedido + '/detalles', 'POST',
+                    {detalles: detallesParaEnviar(), claveEnvio: claveEnvioPendiente});
+        } else {
+            const pedidoDTO = {tipo: tipo, canal: canal, cuentaSeparada: cuentaSeparada, detalles: detallesParaEnviar(),
+                claveEnvio: claveEnvioPendiente};
+            if (tipo === 'LOCAL') {
+                pedidoDTO.idMesa = idMesa;
+                pedidoDTO.numeroPersonas = Number(document.getElementById('numeroPersonas').value);
+            } else if (tipo === 'LLEVAR') {
+                pedidoDTO.nombreCliente = document.getElementById('nombreCliente').value.trim();
+            } else {
+                // Trae nombre, telefono, direccion, referencias, canal, costo de envio y repartidor
+                Object.assign(pedidoDTO, datosEntrega);
+            }
+            resultado = await api('api/pedidos', 'POST', pedidoDTO);
+            sessionStorage.removeItem('datosEntrega');
+            // Se cambia la direccion para que al recargar se abra el pedido creado
+            history.replaceState(null, '', 'tomarPedido.jsp?pedido=' + resultado.idPedido);
+        }
+    } catch (e) {
+        enviando = false;
+        manejarErrorDeEnvio(e);
+        return;
+    }
+
+    enviando = false;
+    claveEnvioPendiente = null;
+    detalles = [];
+    pedidoActual = await api('api/pedidos?id=' + resultado.idPedido);
+    dibujarTicket();
+    if (!resultado.kdsConectado) {
+        // Flujo alterno: el monitor de cocina no responde
+        mostrarAviso('Error de conexion con cocina: se imprimio un ticket de respaldo. Folio ' + resultado.folio, true);
+    } else if (pedidoActual.tipo === 'LOCAL' && !resultado.repetido) {
+        // Paso 13 del flujo basico: mensaje y de regreso al mapa de mesas
+        mostrarAviso('Comanda enviada a cocina');
+        setTimeout(() => window.location.href = 'mesas.jsp', 1200);
+    } else {
+        mostrarAviso('Comanda enviada a cocina. Folio ' + resultado.folio);
+    }
+}
+
+// Decide que hacer si el envio fallo: sin red, producto agotado, mesa ocupada u otro error
+function manejarErrorDeEnvio(e) {
+    if (e.sinConexion) {
+        // Flujo 2.2.12: se conserva todo en pantalla y se ofrece reintentar con la misma clave
+        dibujarAcciones();
+        abrirModal('<div class="modal-basic"><h2>Sin conexion</h2>'
+                + '<p>Sin conexion. El pedido no se ha enviado. Lo que capturaste sigue aqui.</p>'
+                + '<button class="btn primary full" onclick="cerrarModal(); enviarACocina()">REINTENTAR</button>'
+                + '<button class="btn secondary full" onclick="cerrarModal()">CANCELAR</button></div>');
+        return;
+    }
+    if (e.estado === 409 && e.datos && e.datos.productosNoDisponibles) {
+        // Flujo 2.2.11: se marcan los agotados y se recarga el menu para que ya no aparezcan
+        const agotados = e.datos.productosNoDisponibles;
+        for (const d of detalles) {
+            d.agotado = agotados.includes(d.idProducto);
+        }
+        claveEnvioPendiente = null;
+        cargarMenu().catch(() => {});
+        dibujarTicket();
+        mostrarAviso(e.message, true);
+        return;
+    }
+    if (e.estado === 409) {
+        mostrarAviso('La mesa ya fue ocupada por otro mesero. Regresa al mapa de mesas o abre cuenta separada.', true);
+    } else {
+        mostrarAviso(e.message, true);
+    }
+    dibujarAcciones();
+}
+
+// ---------- Modificar lo que ya se envio (flujo 2.2.4) ----------
+
+// Cambia en el servidor la cantidad de algo que sigue en cola
+async function cambiarCantidadEnviada(idDetalle, cantidad) {
+    if (cantidad <= 0) {
+        confirmarQuitarEnviado(idDetalle);
+        return;
+    }
+    try {
+        pedidoActual = await api('api/pedidos/' + pedidoActual.idPedido + '/detalles/' + idDetalle + '/cantidad',
+                'POST', {cantidad: cantidad});
+        dibujarTicket();
+    } catch (e) {
+        mostrarAviso(e.message, true);
+        refrescarPedido();
+    }
+}
+
+// Pregunta antes de quitar algo que ya estaba en la cola de cocina
+function confirmarQuitarEnviado(idDetalle) {
+    const d = pedidoActual.detalles.find(x => x.idDetalle === idDetalle);
+    abrirModal('<div class="modal-basic"><h2>Quitar producto</h2>'
+            + '<p>Se quita <strong>' + d.cantidad + 'x ' + escapar(d.producto) + '</strong> y se saca de la cola de cocina.</p>'
+            + '<button class="btn danger full" onclick="quitarEnviado(' + idDetalle + ')">SI, QUITAR</button>'
+            + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
+}
+
+// Quita en el servidor algo que seguia en cola
+async function quitarEnviado(idDetalle) {
+    try {
+        pedidoActual = await api('api/pedidos/' + pedidoActual.idPedido + '/detalles/' + idDetalle + '/quitar', 'POST', {});
+        cerrarModal();
+        dibujarTicket();
+        mostrarAviso('Producto quitado de la cocina');
+    } catch (e) {
+        cerrarModal();
+        mostrarAviso(e.message, true);
+        refrescarPedido();
+    }
+}
+
+// Campo de PIN que se agrega a las ventanas cuando quien esta en sesion es mesero
+/**
+ * Teclado de PIN en pantalla para que autorice un cajero o administrador.
+ * Solo aparece si quien cancela es mesero; si es cajero o administrador
+ * el mismo autoriza y no se le pide nada (RN-03).
+ */
+function campoPin() {
+    if (esCajero) {
+        return '';
+    }
+    const teclas = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'Borrar', '0', ''];
+    return '<div class="field"><label>PIN de cajero o administrador</label>'
+            + '<input id="pinAutoriza" type="hidden" value="">'
+            + '<div class="pin-puntos" id="pinPuntos"><span></span><span></span><span></span><span></span></div>'
+            + '<div class="teclado-pin">' + teclas.map(t => t === ''
+                ? '<span></span>'
+                : '<button type="button" onclick="teclaPin(\'' + t + '\')">' + t + '</button>').join('') + '</div></div>';
+}
+
+// Una tecla del teclado de PIN: agrega el numero o borra el ultimo
+function teclaPin(tecla) {
+    const campo = document.getElementById('pinAutoriza');
+    if (tecla === 'Borrar') {
+        campo.value = campo.value.slice(0, -1);
+    } else if (campo.value.length < 4) {
+        campo.value += tecla;
+    }
+    // Se pintan los puntitos llenos, sin mostrar los numeros
+    document.querySelectorAll('#pinPuntos span').forEach((p, n) => p.classList.toggle('lleno', n < campo.value.length));
+    marcarCampo('pinAutoriza', '');
+}
+
+// Lo que se escribio en el teclado de PIN, o null si no hay teclado
+function leerPin() {
+    const campo = document.getElementById('pinAutoriza');
+    return campo ? campo.value.trim() : null;
+}
+
+// Ventana para cancelar un producto que ya se esta preparando
+function abrirCancelarProducto(idDetalle) {
+    const d = pedidoActual.detalles.find(x => x.idDetalle === idDetalle);
+    abrirModal('<div class="modal-basic"><h2>Cancelar producto</h2>'
+            + '<p><strong>' + d.cantidad + 'x ' + escapar(d.producto) + '</strong> ya se esta preparando. '
+            + 'Solo un cajero puede quitarlo y queda anotado el motivo.</p>'
+            + '<div class="field"><label for="motivoProducto">Motivo</label>'
+            + '<input id="motivoProducto" maxlength="150" placeholder="Ej. el cliente ya no lo quiso"></div>'
+            + campoPin()
+            + '<button class="btn danger full" onclick="cancelarProducto(' + idDetalle + ')">CANCELAR PRODUCTO</button>'
+            + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
+}
+
+// Manda la cancelacion del producto con su motivo y el PIN
+async function cancelarProducto(idDetalle) {
+    const motivo = document.getElementById('motivoProducto').value.trim();
+    if (!motivo) {
+        marcarCampo('motivoProducto', 'Campo obligatorio');
+        return;
+    }
+    if (!esCajero && !leerPin()) {
+        marcarCampo('pinAutoriza', 'Campo obligatorio');
+        return;
+    }
+    try {
+        pedidoActual = await api('api/pedidos/' + pedidoActual.idPedido + '/detalles/' + idDetalle + '/cancelar',
+                'POST', {motivo: motivo, pin: leerPin()});
+        cerrarModal();
+        dibujarTicket();
+        mostrarAviso('Producto cancelado');
+    } catch (e) {
+        mostrarAviso(e.message, true);
+    }
+}
+
+// ---------- Cerrar y cancelar el pedido ----------
+
+// Ventana de confirmacion antes de pedir la cuenta
+function confirmarCerrar() {
+    const activos = pedidoActual.detalles.filter(d => d.estado !== 'CANCELADO');
+    const piezas = activos.reduce((s, d) => s + d.cantidad, 0);
+    const pendientes = pedidoActual.pendientesCocina || 0;
+    // Resumen corto de lo que se va a cobrar, para revisarlo con el cliente
+    const lineas = activos.map(d => '<div><span>' + textoCantidad(d.cantidad, d.unidadVenta) + ' x ' + escapar(d.producto)
+            + '</span><strong>' + dinero(d.importe) + '</strong></div>').join('');
+    abrirModal(
+            '<div class="modal-basic"><h2>Pedir la cuenta - ' + escapar(textoDestino()) + '</h2>'
+            + '<div class="resumen-lineas">' + lineas + '</div>'
+            + '<div class="total-grande"><span>TOTAL</span><strong>' + dinero(calcularTotal()) + '</strong></div>'
+            + (pendientes ? '<p class="warning-bar">Faltan ' + pendientes + ' producto(s) en la parrilla. Revisa con el parrillero antes de pedir la cuenta.</p>' : '')
+            + '<p>El pedido pasa a <strong>por cobrar</strong> y ya no se le pueden agregar productos.</p>'
+            + '<button class="btn amber full" onclick="cerrarPedido()">PEDIR LA CUENTA</button>'
+            + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
+}
+
+/**
+ * POST /api/pedidos/{id}/cerrar y muestra el ticket con el total a pagar.
+ */
+async function cerrarPedido() {
+    try {
+        pedidoActual = await api('api/pedidos/' + pedidoActual.idPedido + '/cerrar', 'POST', {});
+    } catch (e) {
+        mostrarAviso(e.message, true);
+        return;
+    }
+    dibujarTicket();
+    const lineas = pedidoActual.detalles.filter(d => d.estado !== 'CANCELADO').map(d =>
+        '<div class="receipt-line"><span>' + d.cantidad + 'x ' + escapar(d.producto) + '</span><span>' + dinero(d.importe) + '</span></div>'
+    ).join('');
+    const envio = pedidoActual.costoEnvio
+            ? '<div class="receipt-line"><span>Envio</span><span>' + dinero(pedidoActual.costoEnvio) + '</span></div>' : '';
+    abrirModal(
+            '<div class="modal-basic"><h2>Ticket - ' + escapar(pedidoActual.destino) + '</h2>'
+            + '<p class="muted">Folio ' + escapar(pedidoActual.folio) + '</p>' + lineas + envio
+            + '<div class="receipt-line receipt-total"><strong>TOTAL A PAGAR</strong><strong>' + dinero(pedidoActual.total) + '</strong></div>'
+            + '<button class="btn primary full" onclick="window.print()">IMPRIMIR TICKET</button>'
+            + '<a class="btn secondary full" href="mesas.jsp">VOLVER A MESAS</a></div>');
+}
+
+// Ventana para cancelar el pedido completo
+function abrirCancelar() {
+    // El mesero necesita el PIN de un cajero o administrador (RN-03)
+    abrirModal(
+            '<div class="modal-basic"><h2>Cancelar pedido</h2>'
+            + '<p>Lo que no este listo sale de la parrilla. El pedido no se borra: queda como cancelado.</p>'
+            + '<div class="field"><label>Motivo</label><input id="motivo" type="hidden" value="">'
+            + '<div class="custom-options">' + MOTIVOS_CANCELACION.map(m =>
+                '<button type="button" class="custom-option" data-motivo="' + m + '" onclick="elegirMotivo(\'' + m + '\')">' + m + '</button>').join('')
+            + '</div></div>'
+            + '<div class="field" id="campoOtro" hidden><label for="motivoOtro">Escribe el motivo</label><input id="motivoOtro" maxlength="100"></div>'
+            + campoPin()
+            + '<button class="btn danger full" onclick="confirmarCancelacion()">CANCELAR PEDIDO</button>'
+            + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
+}
+
+// Motivos que mas se usan; "Otro" pide escribirlo
+const MOTIVOS_CANCELACION = ['El cliente se retiro', 'Error en la captura', 'Producto agotado', 'Otro'];
+
+// Marca el motivo elegido (verde con palomita) y muestra el campo si es "Otro"
+function elegirMotivo(motivo) {
+    document.getElementById('motivo').value = motivo;
+    document.querySelectorAll('[data-motivo]').forEach(b => b.classList.toggle('active', b.dataset.motivo === motivo));
+    document.getElementById('campoOtro').hidden = motivo !== 'Otro';
+    marcarCampo('motivo', '');
+}
+
+// Revisa el motivo y el PIN antes de mandar la cancelacion
+function confirmarCancelacion() {
+    const elegido = document.getElementById('motivo').value;
+    if (!elegido) {
+        marcarCampo('motivo', 'Elige un motivo');
+        return;
+    }
+    const otro = document.getElementById('motivoOtro').value.trim();
+    // "Otro" a secas no le dice nada a nadie; se pide que expliquen
+    if (elegido === 'Otro' && !otro) {
+        marcarCampo('motivoOtro', 'Campo obligatorio');
+        return;
+    }
+    if (!esCajero && !leerPin()) {
+        marcarCampo('pinAutoriza', 'Campo obligatorio');
+        return;
+    }
+    cancelarPedido(elegido + (otro ? ': ' + otro : ''));
+}
+
+/**
+ * POST /api/pedidos/{id}/cancelar con el motivo y, si hace falta, el PIN.
+ */
+async function cancelarPedido(motivo) {
+    try {
+        await api('api/pedidos/' + pedidoActual.idPedido + '/cancelar', 'POST', {
+            motivo: motivo,
+            pin: leerPin()
+        });
+    } catch (e) {
+        mostrarAviso(e.message, true);
+        return;
+    }
+    cerrarModal();
+    detalles = [];
+    mostrarAviso('Pedido cancelado');
+    setTimeout(() => window.location.href = 'mesas.jsp', 1200);
+}
+
+// ---------- Salir sin enviar (flujo 2.2.7) ----------
+
+/**
+ * Si hay productos nuevos sin mandar y el mesero se quiere ir, primero se le
+ * pregunta. Si dice que si, se descartan; como un pedido nuevo no existe en la
+ * base hasta que se envia, la mesa se queda libre sola.
+ */
+function intentarSalir(destino) {
+    if (detalles.length === 0) {
+        window.location.href = destino;
+        return;
+    }
+    abrirModal('<div class="modal-basic"><h2>Productos sin enviar</h2>'
+            + '<p>¿Desea salir sin enviar los productos a cocina?</p>'
+            + '<button class="btn danger full" onclick="salirDescartando(\'' + escapar(destino) + '\')">SI, SALIR SIN ENVIAR</button>'
+            + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR AL PEDIDO</button></div>');
+}
+
+// El mesero acepto salir: se olvida lo nuevo y se va
+function salirDescartando(destino) {
+    detalles = [];
+    window.location.href = destino;
+}
+
+// Todos los enlaces del encabezado y "Volver a mesas" pasan por la pregunta
+function protegerEnlaces() {
+    document.querySelectorAll('.header-nav a, .brand, .title-actions a').forEach(enlace => {
+        enlace.addEventListener('click', evento => {
+            if (detalles.length > 0) {
+                evento.preventDefault();
+                intentarSalir(enlace.getAttribute('href'));
+            }
+        });
+    });
+    // Si cierran la pestana o recargan, el navegador hace su propia pregunta
+    window.addEventListener('beforeunload', evento => {
+        if (detalles.length > 0) {
+            evento.preventDefault();
+            evento.returnValue = '';
+        }
+    });
+}
+
+// ---------- Ventana "Abrir pedido" (subflujo Tipar pedido) ----------
+
+// Personas que se eligen con los botones - y + (de 1 a 20)
+let personasElegidas = 2;
+
+/**
+ * Ventana del inicio del pedido. En mesa: "Comer aqui" y el numero de personas
+ * con botones grandes (nada de teclado). Para llevar: nombre del cliente y por
+ * donde llego (las apps usan su precio). Asi el menu queda limpio y el dato no
+ * se olvida, porque sin esto no se puede seguir.
+ */
+function abrirVentanaPedido() {
+    if (tipo === 'LOCAL') {
+        abrirModal('<div class="modal-basic"><h2>Abrir pedido · ' + escapar(textoDestino()) + '</h2>'
+                + '<div class="custom-options"><span class="custom-option active">Comer aqui</span></div>'
+                + '<div class="quantity-panel"><div><strong>PERSONAS</strong><small>Cuantos se sientan</small></div>'
+                + '<div class="large-qty">'
+                + '<button type="button" onclick="cambiarPersonas(-1)" ' + (personasElegidas <= 1 ? 'disabled' : '') + ' aria-label="Una persona menos">-</button>'
+                + '<span>' + personasElegidas + '<small>PERSONAS</small></span>'
+                + '<button type="button" onclick="cambiarPersonas(1)" ' + (personasElegidas >= 20 ? 'disabled' : '') + ' aria-label="Una persona mas">+</button>'
+                + '</div></div>'
+                + '<button class="btn primary full" onclick="confirmarAbrirPedido()">ABRIR PEDIDO</button>'
+                + '<a class="btn secondary full" href="mesas.jsp">REGRESAR A MESAS</a></div>');
+        return;
+    }
+    const nombre = document.getElementById('nombreCliente').value;
+    abrirModal('<div class="modal-basic"><h2>Pedido para llevar</h2>'
+            + '<div class="field"><label for="nombreVentana">Nombre del cliente (para llamarlo cuando este listo)</label>'
+            + '<input id="nombreVentana" maxlength="100" value="' + escapar(nombre) + '"></div>'
+            + '<div class="field"><label>Por donde llego</label><div class="custom-options" id="canales"></div></div>'
+            + '<button class="btn primary full" onclick="confirmarAbrirPedido()">ABRIR PEDIDO</button>'
+            + '<a class="btn secondary full" href="mesas.jsp">REGRESAR A MESAS</a></div>');
+    dibujarCanales();
+}
+
+// Botones - y + de personas; se vuelve a pintar la ventana
+function cambiarPersonas(cambio) {
+    personasElegidas = Math.max(1, Math.min(20, personasElegidas + cambio));
+    abrirVentanaPedido();
+}
+
+// Guarda lo de la ventana y deja al mesero en el menu
+function confirmarAbrirPedido() {
+    if (tipo === 'LOCAL') {
+        document.getElementById('numeroPersonas').value = personasElegidas;
+    } else {
+        const nombre = document.getElementById('nombreVentana').value.trim();
+        if (!nombre) {
+            marcarCampo('nombreVentana', 'Campo obligatorio');
+            return;
+        }
+        document.getElementById('nombreCliente').value = nombre;
+    }
+    cerrarModal();
+    dibujarTicket();
+}
+
+// ---------- Opciones de la mesa o del pedido ----------
+
+/**
+ * Ventana con las acciones que se usan poco. Las comunes van arriba y
+ * "Cancelar pedido" va al final, separado y en rojo, para no picarlo sin querer.
+ */
+function abrirOpciones() {
+    let html = '<div class="modal-basic"><h2>' + escapar(textoDestino()) + '</h2>';
+    if (tipo === 'LOCAL') {
+        html += '<button class="btn secondary full" onclick="abrirCambiarMesa()">CAMBIAR DE MESA</button>'
+                + '<button class="btn secondary full" onclick="abrirJuntarMesa()">JUNTAR CON OTRA MESA</button>';
+        if (pedidoActual.estado === 'ABIERTO') {
+            html += '<a class="btn secondary full" href="tomarPedido.jsp?mesa=' + idMesa + '&separada=1">NUEVA CUENTA SEPARADA</a>';
+        }
+    }
+    html += '<button class="btn outline full opcion-peligrosa" onclick="abrirCancelar()">CANCELAR PEDIDO</button>'
+            + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>';
+    abrirModal(html);
+}
+
+// ---------- Cambiar de mesa y juntar mesas ----------
+
+// Paso para los botones - y + de un producto ya enviado: 1 pieza o 1/4 de kilo
+function pasoDe(unidad) {
+    return unidad === 'KILO' ? PASO_KILO : 1;
+}
+
+/**
+ * Ventana para pasar la cuenta a otra mesa (RN-12). Solo se pueden tocar las
+ * mesas libres; las demas salen apagadas para que no haya error de dedo.
+ */
+async function abrirCambiarMesa() {
+    await abrirSelectorMesas('CAMBIAR DE MESA', 'Toca la mesa libre a donde se pasa la cuenta.', 'cambiarMesa');
+}
+
+// Ventana para juntar una mesa libre con esta mesa (RN-13)
+async function abrirJuntarMesa() {
+    await abrirSelectorMesas('JUNTAR CON OTRA MESA', 'Toca la mesa libre que se junta con la mesa ' + pedidoActual.numeroMesa + '.', 'juntarMesa');
+}
+
+// Dibuja las mesas en la ventana; accion es el nombre de la funcion que se llama al tocar
+async function abrirSelectorMesas(titulo, instruccion, accion) {
+    let mesas;
+    try {
+        mesas = await api('api/mesas');
+    } catch (e) {
+        mostrarAviso(e.message, true);
+        return;
+    }
+    const botones = mesas.map(m => {
+        const libre = m.estado === 'DISPONIBLE' && !m.juntoAMesa && m.idMesa !== idMesa;
+        return '<button class="table-tile ' + (libre ? '' : 'occupied') + '" ' + (libre ? '' : 'disabled')
+                + ' onclick="' + accion + '(' + m.idMesa + ', ' + m.numero + ')">'
+                // Numero de mesa grande y su estado; las que no se pueden elegir salen apagadas
+                + '<strong>Mesa ' + m.numero + '</strong>'
+                + '<span class="table-state">' + (libre ? 'Libre' : (m.juntoAMesa ? 'Junto a mesa ' + m.juntoAMesa : 'No disponible')) + '</span></button>';
+    }).join('');
+    abrirModal('<div class="modal-basic"><h2>' + titulo + '</h2><p>' + instruccion + '</p>'
+            + '<div class="table-grid selector-mesas">' + botones + '</div>'
+            + '<button class="btn secondary full" onclick="cerrarModal()">REGRESAR</button></div>');
+}
+
+// Pasa la cuenta a la mesa elegida y abre la cuenta ya en su mesa nueva
+async function cambiarMesa(idDestino, numero) {
+    try {
+        pedidoActual = await api('api/pedidos/' + pedidoActual.idPedido + '/mesa', 'POST', {idMesa: idDestino});
+        idMesa = pedidoActual.idMesa;
+        cerrarModal();
+        await cargarCuentasMesa();
+        dibujarTicket();
+        mostrarAviso('La cuenta se paso a la mesa ' + numero);
+    } catch (e) {
+        mostrarAviso(e.message, true);
+    }
+}
+
+// Junta la mesa elegida con la mesa de esta cuenta (esta queda como principal)
+async function juntarMesa(idOtra, numero) {
+    try {
+        await api('api/mesas/' + idOtra + '/juntar', 'POST', {idPrincipal: idMesa});
+        cerrarModal();
+        mostrarAviso('La mesa ' + numero + ' quedo junto a la mesa ' + pedidoActual.numeroMesa);
+    } catch (e) {
+        mostrarAviso(e.message, true);
+    }
+}
+
+// ---------- Inicio ----------
+
+// Arranque de la pantalla: menu, pedido y el refresco cada pocos segundos
+async function iniciar() {
+    protegerEnlaces();
+    try {
+        await cargarMenu();
+        await cargarPedido();
+        dibujarTicket();
+        // Pedido nuevo de mesa o para llevar: primero la ventana "Abrir pedido" (CU-02 pasos 3 a 5)
+        if (!pedidoActual && (tipo === 'LOCAL' || tipo === 'LLEVAR')) {
+            abrirVentanaPedido();
+        }
+    } catch (e) {
+        mostrarAviso(e.message, true);
+    }
+    setInterval(refrescarPedido, INTERVALO_REFRESCO);
+}
+
+iniciar();

@@ -1,0 +1,157 @@
+package DTO;
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Datos de un pedido nuevo tal como llegan de la pantalla de toma de pedido.
+ * Dependiendo del tipo se usan unos campos u otros: LOCAL usa idMesa, LLEVAR
+ * usa nombreCliente y DOMICILIO usa los datos de entrega.
+ *
+ * @author Equipo 2
+ */
+public class PedidoDTO {
+
+    public static final String LOCAL = "LOCAL";
+    public static final String LLEVAR = "LLEVAR";
+    public static final String DOMICILIO = "DOMICILIO";
+
+    private String tipo;
+    private Integer idMesa;
+    private Integer numeroPersonas;
+    // true si la mesa ya esta ocupada y se abre otra cuenta en la misma mesa.
+    private boolean cuentaSeparada;
+    private String nombreCliente;
+    private String telefono;
+    private String direccion;
+    private String referencias;
+    private List<DetalleDTO> detalles = new ArrayList<>();
+
+    // Clave unica que inventa la pantalla para este envio; si se reintenta se manda la misma
+    private String claveEnvio;
+
+    // Por donde llego el pedido: MESA, MOSTRADOR, TELEFONO, WHATSAPP, DIDI_FOOD o UBER_EATS
+    private String canal;
+
+    // Solo domicilio: costo de envio segun la zona, y quien lo lleva
+    private BigDecimal costoEnvio;
+    // PROPIO (empleado) o EXTERNO (DiDi, Uber, etc.)
+    private String tipoRepartidor;
+    private String repartidor;
+
+    public PedidoDTO() {
+    }
+
+    public String getClaveEnvio() {
+        return claveEnvio;
+    }
+
+    public void setClaveEnvio(String claveEnvio) {
+        this.claveEnvio = claveEnvio;
+    }
+
+    public String getTipo() {
+        return tipo;
+    }
+
+    public void setTipo(String tipo) {
+        this.tipo = tipo;
+    }
+
+    public Integer getIdMesa() {
+        return idMesa;
+    }
+
+    public void setIdMesa(Integer idMesa) {
+        this.idMesa = idMesa;
+    }
+
+    public Integer getNumeroPersonas() {
+        return numeroPersonas;
+    }
+
+    public void setNumeroPersonas(Integer numeroPersonas) {
+        this.numeroPersonas = numeroPersonas;
+    }
+
+    public boolean isCuentaSeparada() {
+        return cuentaSeparada;
+    }
+
+    public void setCuentaSeparada(boolean cuentaSeparada) {
+        this.cuentaSeparada = cuentaSeparada;
+    }
+
+    public String getNombreCliente() {
+        return nombreCliente;
+    }
+
+    public void setNombreCliente(String nombreCliente) {
+        this.nombreCliente = nombreCliente;
+    }
+
+    public String getTelefono() {
+        return telefono;
+    }
+
+    public void setTelefono(String telefono) {
+        this.telefono = telefono;
+    }
+
+    public String getDireccion() {
+        return direccion;
+    }
+
+    public void setDireccion(String direccion) {
+        this.direccion = direccion;
+    }
+
+    public String getCanal() {
+        return canal;
+    }
+
+    public void setCanal(String canal) {
+        this.canal = canal;
+    }
+
+    public BigDecimal getCostoEnvio() {
+        return costoEnvio;
+    }
+
+    public void setCostoEnvio(BigDecimal costoEnvio) {
+        this.costoEnvio = costoEnvio;
+    }
+
+    public String getTipoRepartidor() {
+        return tipoRepartidor;
+    }
+
+    public void setTipoRepartidor(String tipoRepartidor) {
+        this.tipoRepartidor = tipoRepartidor;
+    }
+
+    public String getRepartidor() {
+        return repartidor;
+    }
+
+    public void setRepartidor(String repartidor) {
+        this.repartidor = repartidor;
+    }
+
+    public String getReferencias() {
+        return referencias;
+    }
+
+    public void setReferencias(String referencias) {
+        this.referencias = referencias;
+    }
+
+    public List<DetalleDTO> getDetalles() {
+        return detalles;
+    }
+
+    public void setDetalles(List<DetalleDTO> detalles) {
+        this.detalles = detalles;
+    }
+}

@@ -1,6 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- */
 package Pruebas;
 
 import Conexion.JPAUtil;
@@ -25,6 +22,8 @@ import Entidades.Producto;
 import Entidades.Usuario;
 import Enums.Rol;
 import java.time.LocalDate;
+import Enums.CanalPedido;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,6 +33,7 @@ import java.util.List;
  */
 public class Persistencia {
 
+    // Recorrido de prueba de toda la capa: se corre a mano desde NetBeans con la BD prendida
     public static void main(String[] args) {
         CuentaDAO cuentaDAO = new CuentaDAO();
         CategoriaDAO categoriaDAO = new CategoriaDAO();
@@ -55,6 +55,18 @@ public class Persistencia {
             System.out.println("PIN 1234 correcto: " + cuentaLeida.validarPin("1234"));
             System.out.println("PIN 9999 correcto: " + cuentaLeida.validarPin("9999"));
 
+            // 1.1 Registrar un administrador y un cocinero
+            System.out.println("--- 1.1 Registrar administrador y cocinero ---");
+            Usuario admin = new Usuario("Administrador de prueba", "6441000001", LocalDate.now());
+            Cuenta cuentaAdmin = new Cuenta(admin, "1111", Rol.ADMINISTRADOR);
+            cuentaDAO.registrar(cuentaAdmin);
+            System.out.println("Guardado: " + cuentaAdmin);
+            System.out.println("Puede autorizar cancelaciones: " + cuentaAdmin.puedeAutorizarCancelacion());
+
+            Usuario cocinero = new Usuario("Cocinero de prueba", "6441000004", LocalDate.now());
+            Cuenta cuentaCocinero = new Cuenta(cocinero, "4444", Rol.COCINERO);
+            cuentaDAO.registrar(cuentaCocinero);
+            System.out.println("Guardado: " + cuentaCocinero);
             // 2. Registrar categoria y producto (si ya existen se reutilizan)
             System.out.println("--- 2. Registrar categoria y producto ---");
             Categoria postres = categoriaDAO.buscarPorNombre("Postres");
@@ -66,7 +78,7 @@ public class Persistencia {
 
             Producto flan = productoDAO.buscarPorNombre("Flan napolitano");
             if (flan == null) {
-                flan = new Producto(postres, "Flan napolitano", "Porcion individual", 40.00);
+                flan = new Producto(postres, "Flan napolitano", "Porcion individual", new BigDecimal("40.00"));
                 productoDAO.registrar(flan);
             }
             System.out.println("Producto: " + flan);
@@ -96,14 +108,14 @@ public class Persistencia {
             Producto coca = productoDAO.buscarPorNombre("Coca-Cola vidrio 355 ml");
 
             PedidoLocal pedidoLocal = new PedidoLocal(usuario, mesa, 2);
-            DetallePedido tacos = new DetallePedido(taco, 3, "Sin cebolla");
+            DetallePedido tacos = new DetallePedido(taco, BigDecimal.valueOf(3), "Sin cebolla", CanalPedido.MESA);
             for (IngredienteExtra extra : taco.getExtras()) {
                 if (extra.getNombre().equals("Queso extra")) {
                     tacos.getExtras().add(new DetalleExtra(tacos, extra, extra.getPrecio()));
                 }
             }
             pedidoLocal.agregarDetalle(tacos);
-            pedidoLocal.agregarDetalle(new DetallePedido(coca, 2, null));
+            pedidoLocal.agregarDetalle(new DetallePedido(coca, BigDecimal.valueOf(2), null, CanalPedido.MESA));
             int idLocal = pedidoDAO.insertarPedido(pedidoLocal);
 
             mostrarPedido(pedidoDAO.buscarPorId(idLocal));
@@ -111,7 +123,7 @@ public class Persistencia {
 
             // La mesa ya esta ocupada, otro pedido sin cuenta separada se debe rechazar
             PedidoLocal otro = new PedidoLocal(usuario, mesa, 1);
-            otro.agregarDetalle(new DetallePedido(coca, 1, null));
+            otro.agregarDetalle(new DetallePedido(coca, BigDecimal.valueOf(1), null, CanalPedido.MESA));
             try {
                 pedidoDAO.insertarPedido(otro);
                 System.out.println("Error: se acepto un pedido en una mesa ocupada");
@@ -122,7 +134,7 @@ public class Persistencia {
             // 5. Registrar un pedido para llevar
             System.out.println("--- 5. Registrar pedido para llevar ---");
             PedidoParaLlevar paraLlevar = new PedidoParaLlevar(usuario, "Carlos");
-            paraLlevar.agregarDetalle(new DetallePedido(productoDAO.buscarPorNombre("Quesadilla asada"), 1, null));
+            paraLlevar.agregarDetalle(new DetallePedido(productoDAO.buscarPorNombre("Quesadilla asada"), BigDecimal.valueOf(1), null, CanalPedido.MESA));
             pedidoDAO.insertarPedido(paraLlevar);
             mostrarPedido(pedidoDAO.buscarPorId(paraLlevar.getIdPedido()));
 
@@ -130,8 +142,8 @@ public class Persistencia {
             System.out.println("--- 6. Registrar pedido a domicilio ---");
             DatosEntrega datos = new DatosEntrega("Ana Lopez", "6449876543", "Calle Sufragio 123, Col. Campanario", "Casa azul");
             System.out.println("Datos de entrega validos: " + datos.validar());
-            PedidoDomicilio domicilio = new PedidoDomicilio(usuario, 25.00, datos);
-            domicilio.agregarDetalle(new DetallePedido(productoDAO.buscarPorNombre("Asada doble carne"), 2, null));
+            PedidoDomicilio domicilio = new PedidoDomicilio(usuario, new BigDecimal("25.00"), datos);
+            domicilio.agregarDetalle(new DetallePedido(productoDAO.buscarPorNombre("Asada doble carne"), BigDecimal.valueOf(2), null, CanalPedido.MESA));
             pedidoDAO.insertarPedido(domicilio);
 
             PedidoDomicilio domicilioLeido = (PedidoDomicilio) pedidoDAO.buscarPorId(domicilio.getIdPedido());
@@ -142,7 +154,7 @@ public class Persistencia {
 
             // 7. Agregar productos al pedido local
             System.out.println("--- 7. Agregar productos al pedido local ---");
-            DetallePedido flanes = new DetallePedido(flan, 2, null);
+            DetallePedido flanes = new DetallePedido(flan, BigDecimal.valueOf(2), null, CanalPedido.MESA);
             flanes.setPedido(pedidoLocal);
             List<DetallePedido> nuevos = new ArrayList<>();
             nuevos.add(flanes);
@@ -188,6 +200,7 @@ public class Persistencia {
         }
     }
 
+    // Imprime un pedido con sus renglones para revisarlo en la consola
     private static void mostrarPedido(Pedido pedido) {
         System.out.println(pedido);
         for (DetallePedido d : pedido.getDetalles()) {

@@ -1,0 +1,99 @@
+package DAO;
+
+import Conexion.JPAUtil;
+import Entidades.Compra;
+import Entidades.DetalleCompra;
+import Entidades.Ingrediente;
+import Entidades.Proveedor;
+import IAccesoDatos.ICompraDAO;
+import jakarta.persistence.EntityManager;
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * Acceso a datos de las compras de insumos a los proveedores.
+ *
+ * @author Equipo 2
+ */
+public class CompraDAO implements ICompraDAO {
+
+    /**
+     * Guarda una compra junto con sus renglones. Ya no se suben existencias
+     * porque los insumos solo se llevan como catalogo (decision del cliente).
+     * Si no trae proveedor es una compra directa (mercado, super).
+     */
+    @Override
+    public void registrar(Compra compra) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            em.getTransaction().begin();
+            if (compra.getProveedor() != null) {
+                compra.setProveedor(em.find(Proveedor.class, compra.getProveedor().getIdProveedor()));
+            }
+            for (DetalleCompra detalle : compra.getDetalles()) {
+                // Se usa el insumo que esta en la base para no crear uno repetido
+                Ingrediente ingrediente = em.find(Ingrediente.class, detalle.getIngrediente().getIdIngrediente());
+                detalle.setIngrediente(ingrediente);
+                detalle.setCompra(compra);
+            }
+            em.persist(compra);
+            em.getTransaction().commit();
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new RuntimeException("No se pudo registrar la compra: " + e.getMessage(), e);
+        } finally {
+            em.close();
+        }
+    }
+
+    // Busca una compra con sus renglones; null si no existe
+    @Override
+    public Compra buscarPorId(int idCompra) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            Compra compra = em.find(Compra.class, idCompra);
+            if (compra != null) {
+                compra.getDetalles().size();
+            }
+            return compra;
+        } finally {
+            em.close();
+        }
+    }
+
+    // Compras hechas entre dos fechas (para el reporte de compras)
+    @Override
+    public List<Compra> listarPorPeriodo(LocalDateTime inicio, LocalDateTime fin) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            List<Compra> compras = em.createQuery(
+                    "SELECT c FROM Compra c WHERE c.fecha BETWEEN :inicio AND :fin ORDER BY c.fecha", Compra.class)
+                    .setParameter("inicio", inicio)
+                    .setParameter("fin", fin)
+                    .getResultList();
+            // Se leen los detalles antes de cerrar el EntityManager
+            for (Compra compra : compras) {
+                compra.getDetalles().size();
+            }
+            return compras;
+        } finally {
+            em.close();
+        }
+    }
+
+    // Cuantas compras tiene un proveedor
+    @Override
+    public long contarPorProveedor(int idProveedor) {
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            return em.createQuery(
+                    "SELECT COUNT(c) FROM Compra c WHERE c.proveedor.idProveedor = :id", Long.class)
+                    .setParameter("id", idProveedor)
+                    .getSingleResult();
+        } finally {
+            em.close();
+        }
+    }
+}

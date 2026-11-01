@@ -1,0 +1,7 @@
+<%-- Pie de pagina y contenedores para avisos y ventanas --%>
+<footer class="footer">
+    <span>Sistema de Gestion Taqueria Mi Buen</span>
+    <span>Equipo 2</span>
+</footer>
+<div id="modal-root"></div>
+<div id="toast" role="status" aria-live="polite"></div>

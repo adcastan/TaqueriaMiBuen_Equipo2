@@ -5,14 +5,17 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 /**
- * Extra que el cliente puede agregar a un producto.
- * Puede estar ligado al ingrediente del inventario que consume.
+ * Opcion de preparacion o extra que se le puede poner a un producto.
+ * Si el precio es cero es una opcion sin costo ("Sin cebolla", "Salsa aparte");
+ * si es mayor a cero es un extra que se cobra ("Tortilla de harina" +$5).
+ *
+ * Ya no se liga al inventario porque los insumos solo se llevan como
+ * catalogo (decision del cliente).
  *
  * @author Equipo 2
  */
@@ -25,23 +28,28 @@ public class IngredienteExtra implements Serializable {
     @Column(name = "id_extra")
     private Integer idExtra;
 
-    @ManyToOne
-    @JoinColumn(name = "id_ingrediente")
-    private Ingrediente ingrediente;
-
     @Column(name = "nombre", nullable = false, length = 60)
     private String nombre;
 
-    @Column(name = "precio", nullable = false)
-    private double precio;
+    // Lo que se le suma al precio del producto; cero si es solo una indicacion
+    @Column(name = "precio", nullable = false, precision = 10, scale = 2)
+    private BigDecimal precio = BigDecimal.ZERO;
+
+    // false si ya no se ofrece (baja logica)
+    @Column(name = "activo", nullable = false)
+    private boolean activo = true;
 
     public IngredienteExtra() {
     }
 
-    public IngredienteExtra(String nombre, double precio, Ingrediente ingrediente) {
+    public IngredienteExtra(String nombre, BigDecimal precio) {
         this.nombre = nombre;
         this.precio = precio;
-        this.ingrediente = ingrediente;
+    }
+
+    // true si es una opcion que no cuesta (solo es indicacion para la parrilla)
+    public boolean esSinCosto() {
+        return precio == null || precio.signum() == 0;
     }
 
     public Integer getIdExtra() {
@@ -52,14 +60,6 @@ public class IngredienteExtra implements Serializable {
         this.idExtra = idExtra;
     }
 
-    public Ingrediente getIngrediente() {
-        return ingrediente;
-    }
-
-    public void setIngrediente(Ingrediente ingrediente) {
-        this.ingrediente = ingrediente;
-    }
-
     public String getNombre() {
         return nombre;
     }
@@ -68,12 +68,20 @@ public class IngredienteExtra implements Serializable {
         this.nombre = nombre;
     }
 
-    public double getPrecio() {
+    public BigDecimal getPrecio() {
         return precio;
     }
 
-    public void setPrecio(double precio) {
+    public void setPrecio(BigDecimal precio) {
         this.precio = precio;
+    }
+
+    public boolean isActivo() {
+        return activo;
+    }
+
+    public void setActivo(boolean activo) {
+        this.activo = activo;
     }
 
     @Override

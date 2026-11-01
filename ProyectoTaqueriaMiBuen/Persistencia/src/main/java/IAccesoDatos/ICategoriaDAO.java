@@ -1,0 +1,29 @@
+package IAccesoDatos;
+
+import Entidades.Categoria;
+import java.util.List;
+
+/**
+ * Operaciones de base de datos de las categorias del menu.
+ * La implementa CategoriaDAO. 
+ * Las demas capas usan esta interfaz y no la clase directamente.
+ *
+ * @author Equipo 2
+ */
+public interface ICategoriaDAO {
+
+    // Guarda una categoria nueva.
+    public void registrar(Categoria categoria);
+
+    // Regresa la categoria con ese nombre o null.
+    public Categoria buscarPorNombre(String nombre);
+
+    // Todas las categorias en el orden del menu.
+    public List<Categoria> listar();
+    
+    // Categoria por su id o null.
+    public Categoria buscarPorId(int idCategoria);
+
+    // Guarda los cambios de nombre u orden.
+    public void actualizar(Categoria categoria);
+}

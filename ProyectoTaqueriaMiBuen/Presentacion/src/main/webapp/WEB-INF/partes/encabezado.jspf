@@ -1,0 +1,48 @@
+<%--
+Encabezado que comparten todas las pantallas despues del login.
+Cada pagina pone el atributo "seccion" antes de incluirlo para marcar el boton activo del menu.
+--%>
+<%
+    String seccion = (String) request.getAttribute("seccion");
+    // Una cuenta puede tener varios roles: llegan como "CAJERO,MESERO,COCINERO"
+    String rolesSesion = "," + session.getAttribute("roles") + ",";
+    boolean esAdmin = rolesSesion.contains(",ADMINISTRADOR,");
+    boolean esCajero = rolesSesion.contains(",CAJERO,");
+    boolean esMesero = rolesSesion.contains(",MESERO,");
+    // Solo es "cocinero" para el menu si no atiende mesas ni caja
+    boolean esCocinero = rolesSesion.contains(",COCINERO,") && !esAdmin && !esCajero && !esMesero;
+    boolean veCocina = esAdmin || rolesSesion.contains(",COCINERO,");
+%>
+<header class="app-header">
+    <a class="brand" href="<%= esCocinero ? "kds.jsp" : "mesas.jsp"%>">
+        <%-- Logo de la taqueria (viene de la presentacion del proyecto) --%>
+        <img class="brand-logo" src="assets/logo-mi-buen.png" alt="Taqueria Mi Buen" width="44" height="44">
+        <div>
+            <strong>MI BUEN <span class="muted">/ ASADA POS</span></strong>
+            <small>Tu turno. Tu ritmo. Tu estacion.</small>
+        </div>
+    </a>
+    <nav class="header-nav" aria-label="Menu principal">
+        <% if (!esCocinero) {%>
+        <a class="<%= "mesas".equals(seccion) ? "active" : ""%>" href="mesas.jsp">Comedor / Mesas</a>
+        <a class="<%= "llevar".equals(seccion) ? "active" : ""%>" href="tomarPedido.jsp?tipo=LLEVAR">Para llevar</a>
+        <a class="<%= "domicilio".equals(seccion) ? "active" : ""%>" href="datosEntrega.jsp">A domicilio</a>
+        <% } %>
+        <% if (esAdmin || esCajero) {%>
+        <a class="<%= "cobro".equals(seccion) ? "active" : ""%>" href="cobro.jsp">Cobro</a>
+        <% } %>
+        <% if (veCocina) {%>
+        <a class="<%= "cocina".equals(seccion) ? "active" : ""%>" href="kds.jsp">Monitor de cocina</a>
+        <% }%>
+    </nav>
+    <div class="header-side">
+        <span class="clock" id="reloj"></span>
+        <div class="user">
+            <div>
+                <strong>${sessionScope.usuario.nombre}</strong>
+                <small>${sessionScope.roles}</small>
+            </div>
+            <button class="btn secondary compact" type="button" onclick="cerrarSesion()">Salir</button>
+        </div>
+    </div>
+</header>
