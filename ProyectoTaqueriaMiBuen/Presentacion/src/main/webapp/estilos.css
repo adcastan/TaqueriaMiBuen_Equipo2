@@ -84,6 +84,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
   width: 44px; height: 44px; border-radius: 12px;
   background: var(--verde); color: #fff; font-weight: 800; font-size: 20px;
 }
+/* Logo de la taqueria: va sobre un cuadro blanco para que se vea igual en el monitor oscuro */
+.brand-logo {
+  width: 44px; height: 44px; object-fit: contain; padding: 2px;
+  border-radius: 12px; background: #fff; border: 1px solid var(--borde);
+}
 .header-nav { display: flex; gap: 8px; margin: 0 auto; overflow-x: auto; }
 .header-nav a {
   display: flex; align-items: center; min-height: 48px; padding: 0 18px;
@@ -399,9 +404,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* ---------- Inicio de sesion ---------- */
 .login-pagina { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
 .login-tarjeta { width: min(440px, 100%); padding: 32px; display: grid; gap: 14px; }
-.login-marca { display: flex; align-items: center; gap: 12px; }
-.login-marca small { display: block; color: var(--texto-suave); }
+.login-marca { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.login-marca strong { font-size: 24px; font-weight: 800; }
+.login-logo { width: 120px; height: auto; }
+.login-tarjeta form { display: grid; gap: 12px; min-width: 0; }
 .login-tarjeta .field { margin: 0; }
+/* En el login el campo y el teclado no deben salirse del recuadro */
+.login-tarjeta input, .login-teclado { width: 100%; min-width: 0; }
 .login-tarjeta #pin { text-align: center; font-size: 28px; letter-spacing: .5em; }
 .login-teclado { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .login-teclado .btn { min-height: 72px; font-size: 26px; }
@@ -414,6 +423,17 @@ body.pantalla-cocina .app-header, body.pantalla-cocina .user small, body.pantall
 body.pantalla-cocina .header-nav a.active { background: #F2F3F5; color: #14161C; }
 body.pantalla-cocina .page-title p, body.pantalla-cocina .footer { color: #9AA1AE; }
 body.pantalla-cocina .btn.secondary { background: #262A34; color: #F2F3F5; border-color: #2A2E38; }
+/* Las ventanas del monitor son claras aunque el monitor sea oscuro: se regresan los colores normales */
+body.pantalla-cocina .modal { color: var(--texto); }
+body.pantalla-cocina .modal .btn.secondary { background: var(--tarjeta); color: var(--texto); border-color: var(--borde); }
+/* Renglon de "Productos agotados": nombre, estado y un boton con el verbo exacto */
+.renglon-agotado {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center;
+  padding: 10px 0; border-bottom: 1px solid var(--borde);
+}
+.renglon-agotado strong { font-size: 18px; }
+.renglon-agotado .btn { min-width: 190px; }
+@media (max-width: 600px) { .renglon-agotado { grid-template-columns: 1fr auto; } .renglon-agotado .btn { grid-column: 1 / -1; } }
 /* Tira "En plancha": total por producto de todas las comandas abiertas */
 .en-plancha { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; font-weight: 700; color: #9AA1AE; }
 .en-plancha span { padding: 6px 12px; border-radius: 10px; background: #262A34; color: #F2F3F5; font-size: 16px; }
@@ -437,7 +457,10 @@ body.pantalla-cocina .btn.secondary { background: #262A34; color: #F2F3F5; borde
 .renglon-cocina p { margin: 4px 0 0; color: #F2F3F5; }
 /* Notas y extras resaltados en amarillo: es lo que mas se olvida */
 .renglon-cocina .resaltado { display: inline-block; margin-top: 6px; padding: 4px 10px; border-radius: 8px; background: #FFE58A; color: #3A2C00; font-weight: 700; font-size: 15px; }
-.renglon-cocina .btn { min-width: 150px; min-height: 64px; font-size: 18px; }
+.renglon-cocina .btn { min-width: 120px; }
+/* El boton grande de la comanda va abajo, a todo lo ancho */
+.pie-comanda { padding: 14px 18px 18px; border-top: 1px solid #2A2E38; }
+.boton-comanda { min-height: var(--boton-principal); font-size: 20px; }
 .renglon-cocina.preparando { background: #22262F; }
 
 /* ---------- Cobro (CU-05; pantalla que usa el siguiente equipo) ---------- */

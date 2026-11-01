@@ -52,7 +52,7 @@ function agruparPorComanda(detalles) {
     for (const d of detalles) {
         const clave = d.idPedido + '-' + d.ronda;
         if (!porClave[clave]) {
-            porClave[clave] = {destino: d.destino, canal: d.canal, ronda: d.ronda, minutos: 0, productos: []};
+            porClave[clave] = {idPedido: d.idPedido, destino: d.destino, canal: d.canal, ronda: d.ronda, minutos: 0, productos: []};
             comandas.push(porClave[clave]);
         }
         porClave[clave].productos.push(d);
@@ -99,18 +99,26 @@ function dibujarCola() {
     contenedor.innerHTML = agruparPorComanda(cola).map(c => {
         const urgencia = c.minutos >= MINUTOS_TARDE ? ' tarde' : (c.minutos >= MINUTOS_ATENCION ? ' atencion' : '');
         const canal = CANALES[c.canal] ? ' · ' + CANALES[c.canal] : '';
+        // Un solo boton para toda la comanda: si algo sigue en cola se empieza todo;
+        // si ya se esta preparando, se marca toda lista. Son 2 toques por mesa.
+        const hayEnCola = c.productos.some(d => d.estado === 'PENDIENTE');
+        const botonComanda = hayEnCola
+                ? '<button class="btn secondary full boton-comanda" onclick="cambiarComanda(' + c.idPedido + ', ' + c.ronda + ', \'EN_PREPARACION\')">EMPEZAR COMANDA</button>'
+                : '<button class="btn primary full boton-comanda" onclick="cambiarComanda(' + c.idPedido + ', ' + c.ronda + ', \'LISTO\')">COMANDA LISTA</button>';
         return '<article class="comanda' + urgencia + '">'
                 + '<header class="comanda-cabeza"><div><h3>' + escapar(c.destino) + '</h3>'
                 + '<small>Ronda ' + c.ronda + canal + '</small></div>'
                 + '<span class="minutos">' + c.minutos + ' min</span></header>'
                 + c.productos.map(renglonCocina).join('')
+                + '<div class="pie-comanda">' + botonComanda + '</div>'
                 + '</article>';
     }).join('');
 }
 
 /**
- * Un producto de la comanda. Un solo boton: primero "EMPEZAR" (desde ahi el
- * mesero ya no lo puede quitar) y luego "LISTO".
+ * Un producto de la comanda. No hace falta tocar cada uno: la comanda se
+ * empieza y se termina completa. El boton chico "Ya salio" es opcional, para
+ * cuando algo sale antes que lo demas (entrega parcial).
  */
 function renglonCocina(d) {
     const cantidad = d.unidadVenta === 'KILO' ? Number(d.cantidad) + ' kg' : Number(d.cantidad);
@@ -119,9 +127,7 @@ function renglonCocina(d) {
     if (d.piezas && d.piezas.length) resaltados += '<span class="resaltado">' + escapar(d.piezas.join(', ')) + '</span> ';
     if (d.extras.length) resaltados += '<span class="resaltado">' + escapar(d.extras.join(', ')) + '</span> ';
     if (d.notaCocina) resaltados += '<span class="resaltado">' + escapar(d.notaCocina) + '</span>';
-    const boton = preparando
-            ? '<button class="btn primary" onclick="cambiarEstado(' + d.idDetalle + ', \'LISTO\')">LISTO</button>'
-            : '<button class="btn secondary" onclick="cambiarEstado(' + d.idDetalle + ', \'EN_PREPARACION\')">EMPEZAR</button>';
+    const boton = '<button class="btn secondary compact" onclick="cambiarEstado(' + d.idDetalle + ', \'LISTO\')">Ya salio</button>';
     return '<div class="renglon-cocina' + (preparando ? ' preparando' : '') + '">'
             + '<div><h4><b>' + cantidad + '</b>' + escapar(d.producto) + '</h4>' + (resaltados ? '<p>' + resaltados + '</p>' : '') + '</div>'
             + boton + '</div>';
@@ -142,9 +148,24 @@ async function cambiarEstado(idDetalle, estado) {
 }
 
 /**
- * Ventana "Se acabo": lista de productos de parrilla con un boton grande cada
- * uno para marcarlo agotado o disponible (RN-05). Al marcarlo, el mesero ya
- * no lo puede agregar.
+ * "Empezar comanda" o "Comanda lista": un solo toque cambia todos los
+ * productos de esa mesa y ronda (POST /api/kds/comandas/{idPedido}/{ronda}/estado).
+ */
+async function cambiarComanda(idPedido, ronda, estado) {
+    try {
+        await api('api/kds/comandas/' + idPedido + '/' + ronda + '/estado', 'POST', {estado: estado});
+    } catch (e) {
+        mostrarAviso(e.message, true);
+    }
+    cargarCola();
+}
+
+/**
+ * Ventana "Productos agotados": cada producto de parrilla con su estado
+ * (chip Disponible / Agotado) y un boton que dice exactamente lo que hace
+ * ("Marcar agotado" o "Marcar disponible"), para que no haya duda (RN-05).
+ * Se marcan productos y no insumos porque es lo que el mesero deja de poder
+ * pedir; los insumos solo se llevan como catalogo (decision del cliente).
  */
 async function abrirAgotados() {
     let productos;
@@ -154,12 +175,17 @@ async function abrirAgotados() {
         mostrarAviso(e.message, true);
         return;
     }
-    abrirModal('<div class="modal-basic"><h2>SE ACABO...</h2><p>Toca un producto para marcarlo agotado o disponible.</p>'
+    abrirModal('<div class="modal-basic ventana-agotados"><h2>Productos agotados</h2>'
+            + '<p>Si se acaba algo, marcalo como agotado. El mesero ya no podra pedirlo hasta que lo marques disponible.</p>'
             + productos.map(p =>
-                '<button class="btn ' + (p.disponible ? 'secondary' : 'danger') + ' full" '
-                + 'onclick="cambiarDisponible(' + p.idProducto + ', ' + !p.disponible + ')">'
-                + escapar(p.nombre.toUpperCase()) + ' - ' + (p.disponible ? 'HAY' : 'SE ACABO') + '</button>').join('')
-            + '<button class="btn secondary full" onclick="cerrarModal()">LISTO</button></div>');
+                '<div class="renglon-agotado">'
+                + '<strong>' + escapar(p.nombre) + '</strong>'
+                + '<span class="pill ' + (p.disponible ? 'green' : 'red') + '">' + (p.disponible ? 'Disponible' : 'Agotado') + '</span>'
+                + (p.disponible
+                    ? '<button class="btn outline" onclick="cambiarDisponible(' + p.idProducto + ', false)">Marcar agotado</button>'
+                    : '<button class="btn primary" onclick="cambiarDisponible(' + p.idProducto + ', true)">Marcar disponible</button>')
+                + '</div>').join('')
+            + '<button class="btn secondary full" onclick="cerrarModal()">Cerrar</button></div>');
 }
 
 // Marca el producto y vuelve a pintar la ventana con el cambio

@@ -11,18 +11,16 @@ y nos dice a que pantalla entrar segun el rol.
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Iniciar sesion - Mi Buen</title>
-        <link rel="icon" href="assets/brand.svg" type="image/svg+xml">
+        <link rel="icon" href="assets/logo-mi-buen.png" type="image/png">
         <link rel="stylesheet" href="estilos.css">
     </head>
     <body>
         <main class="login-pagina">
             <section class="card login-tarjeta">
+                <%-- Logo y nombre de la taqueria; nada de datos tecnicos (ni IP ni version) --%>
                 <div class="login-marca">
-                    <span class="brand-mark">A</span>
-                    <div>
-                        <strong>MI BUEN <span class="muted">/ ASADA POS</span></strong>
-                        <small>Sistema de Gestion Taqueria Mi Buen</small>
-                    </div>
+                    <img class="login-logo" src="assets/logo-mi-buen.png" alt="Taqueria Mi Buen" width="120" height="123">
+                    <strong>Taqueria Mi Buen</strong>
                 </div>
                 <h1>Iniciar sesion</h1>
                 <p class="muted">Escribe tu PIN de 4 digitos.</p>

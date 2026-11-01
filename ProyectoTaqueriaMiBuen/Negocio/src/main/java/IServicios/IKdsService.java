@@ -22,4 +22,7 @@ public interface IKdsService {
 
     // true si algun monitor dio latido hace poco.
     public boolean hayKdsConectado();
+
+    // Cambia todos los productos de una comanda (pedido + ronda) de un solo toque
+    public int cambiarEstadoComanda(int idPedido, int ronda, String estado);
 }

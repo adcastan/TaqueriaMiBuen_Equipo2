@@ -50,7 +50,7 @@ Empleados de prueba (los PIN se guardan cifrados con BCrypt). Una cuenta puede t
 | Cuentas separadas | Una mesa (o un grupo de mesas) puede tener varias cuentas; la pantalla muestra botones para pasar de una a otra. |
 | Cerrar pedido | Cerrar = el cliente pidió la cuenta. El pedido pasa a «Por cobrar», la mesa se pone en ámbar y ya no acepta productos. El cajero cobra y la mesa vuelve a verde. |
 | Cancelar pedido | Si lo cancela un mesero pide el PIN de un cajero o administrador y el motivo. Se guardan el motivo, quién autorizó y la hora. Nunca se borra nada. Si el PIN no sirve sale «Autorizacion no valida». |
-| Producto agotado | Desde el monitor de cocina, el botón «Se acabó…» marca un producto como agotado (lo puede hacer la parrilla o el administrador). El mesero lo ve gris y no lo puede agregar; si se agota mientras captura, al enviar sale «Producto no disponible». Un paquete se agota solo si se acaba una de sus piezas. |
+| Producto agotado | Desde el monitor de cocina, el botón «Productos agotados» muestra cada producto con su estado (Disponible o Agotado) y un botón «Marcar agotado» o «Marcar disponible» (lo puede hacer la parrilla o el administrador). El mesero lo ve gris y no lo puede agregar; si se agota mientras captura, al enviar sale «Producto no disponible». Un paquete se agota solo si se acaba una de sus piezas. |
 | Salir sin enviar, pedido sin productos, datos incompletos | Pregunta antes de salir con productos nuevos; «Enviar a cocina» se apaga sin productos; los campos obligatorios se ponen en rojo con «Campo obligatorio». |
 | Falla de conexión | Sale «Sin conexion. El pedido no se ha enviado» con «Reintentar»; reintentar manda la misma clave y el servidor no duplica la comanda. Si el monitor de cocina no está conectado se imprime el ticket de respaldo. |
 | Concurrencia | Dos meseros no pueden abrir la misma mesa al mismo tiempo y los turnos de cocina no se repiten. |
@@ -74,7 +74,7 @@ Empleados de prueba (los PIN se guardan cifrados con BCrypt). Una cuenta puede t
 - Dominio: dinero en BigDecimal (`Herramientas.Dinero`), enums `CanalPedido`, `UnidadVenta`, `TipoRepartidor` y `MetodoPago`, entidades `CambioMesa` y `PaqueteComponente`, cuenta con varios roles.
 - Persistencia: `PedidoDAO.cambiarMesa` y `listarActivosPorMesa`; `MesaDAO.juntarMesas`, `separarMesa` y `recalcularEstado` (le pasa el color a las mesas unidas y deshace el grupo al quedar libre).
 - Negocio: `PedidoService` con canal, precio de apps, kilos, envío y repartidor, cambiar y juntar mesas; `MenuService.obtenerProductosDeParrilla`; PIN de 4 dígitos.
-- Control: rutas `POST /api/pedidos/{id}/mesa`, `GET /api/pedidos?cuentasMesa=`, `POST /api/mesas/{id}/juntar` y `/separar`, `GET /api/kds/productos` y `POST /api/kds/productos/{id}/disponible`. La sesión guarda los roles separados por comas.
+- Control: ruta `POST /api/kds/comandas/{idPedido}/{ronda}/estado` (empezar o terminar toda una comanda) y rutas `POST /api/pedidos/{id}/mesa`, `GET /api/pedidos?cuentasMesa=`, `POST /api/mesas/{id}/juntar` y `/separar`, `GET /api/kds/productos` y `POST /api/kds/productos/{id}/disponible`. La sesión guarda los roles separados por comas.
 - Se eliminó todo lo del reporte de rendimiento de empleados (CU-11), por indicación del profesor.
 - Se quitaron del repositorio las carpetas `target` (son archivos compilados; el `.gitignore` ya las ignora).
 
@@ -135,7 +135,8 @@ Todo se probó con MySQL 8 y Tomcat 10.1 de verdad y el WAR compilado de este mi
   - lo seleccionado en verde lleno con palomita;
   - "Deshacer" para lo que se puede revertir y confirmación solo para lo que no (cancelar, pedir la cuenta);
   - pocos botones por pantalla: lo que se usa poco va en "Opciones";
-  - el monitor de parrilla agrupa por comanda, cambia de color con los minutos de espera (8 y 15, se ajustan en `kds.js`) y muestra la tira "En plancha";
+  - el monitor de parrilla agrupa por comanda y se maneja con 2 toques por mesa: «Empezar comanda» y «Comanda lista» (con «Ya salió» opcional por producto); cambia de color con los minutos de espera (8 y 15, se ajustan en `kds.js`) y muestra la tira "En plancha";
+  - el logo de la taquería está en `assets/logo-mi-buen.png` y sale en el encabezado, el inicio de sesión y la pestaña del navegador;
   - todo es local: la letra Inter está en `assets/fuentes` (licencia OFL), no se usan CDN ni fotos de internet. Si el dueño manda fotos de sus platillos, se agregan en `assets`.
 - **Para el siguiente equipo:** el resto de los casos de uso. La base ya los soporta y el patrón es el mismo (Servlet → Service → DAO):
   - CU-01 Administrar Menú (alta de productos, paquetes, extras, precio de apps).

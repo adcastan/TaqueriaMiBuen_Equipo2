@@ -11,7 +11,7 @@ Solo pueden entrar COCINERO y ADMINISTRADOR (lo revisa FiltroSeguridad).
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Monitor de cocina - Mi Buen</title>
-        <link rel="icon" href="assets/brand.svg" type="image/svg+xml">
+        <link rel="icon" href="assets/logo-mi-buen.png" type="image/png">
         <link rel="stylesheet" href="estilos.css">
     </head>
     <body data-terminal="1" class="pantalla-cocina">
@@ -24,13 +24,13 @@ Solo pueden entrar COCINERO y ADMINISTRADOR (lo revisa FiltroSeguridad).
                     <div>
                         <div class="eyebrow">Monitor de cocina</div>
                         <h1>Cola de preparacion</h1>
-                        <p>Se prepara en orden de turno. Toca LISTO cuando el producto salga.</p>
+                        <p>Toca EMPEZAR COMANDA al ponerla en la plancha y COMANDA LISTA al terminar.</p>
                     </div>
                 </div>
                 <div class="title-actions">
                     <span class="pill amber" id="totalPendientes">0 pendientes</span>
                     <span class="pill green" id="ultimaActualizacion">Sin actualizar</span>
-                    <button class="btn danger compact" type="button" onclick="abrirAgotados()">SE ACABO...</button>
+                    <button class="btn danger compact" type="button" onclick="abrirAgotados()">PRODUCTOS AGOTADOS</button>
                 </div>
             </div>
 

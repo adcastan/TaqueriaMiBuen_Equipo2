@@ -20,6 +20,7 @@ import java.util.Map;
  * Peticiones del monitor de cocina (kds.js):
  *   GET  /api/kds?terminal=1: cola de detalles pendientes (tambien registra el latido)
  *   POST /api/kds/detalles/{idDetalle}/listo: el cocinero marca un detalle como listo
+ *   POST /api/kds/comandas/{idPedido}/{ronda}/estado {estado}: empieza o termina toda una comanda
  *   GET  /api/kds/productos: productos de parrilla con su disponibilidad
  *   POST /api/kds/productos/{idProducto}/disponible {disponible}: se agoto o ya hay (RN-05)
  *
@@ -76,6 +77,21 @@ public class KdsServlet extends HttpServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         String ruta = req.getPathInfo();
         String[] partes = ruta == null ? new String[0] : ruta.split("/");
+        // "/comandas/8/1/estado": toda la comanda de un toque
+        if (partes.length == 5 && partes[1].equals("comandas") && partes[4].equals("estado")) {
+            try {
+                NuevoEstado datos = Json.leer(req, NuevoEstado.class);
+                kdsService.cambiarEstadoComanda(Integer.parseInt(partes[2]), Integer.parseInt(partes[3]), datos.estado);
+                resp.setStatus(204);
+            } catch (NumberFormatException e) {
+                Json.error(resp, 400, "La comanda trae un numero no valido");
+            } catch (NegocioException e) {
+                Json.error(resp, 409, e.getMessage());
+            } catch (RuntimeException e) {
+                Json.error(resp, 500, "No se pudo cambiar la comanda: " + e.getMessage());
+            }
+            return;
+        }
         // "/productos/3/disponible": la parrilla avisa que se acabo (o ya hay) un producto
         if (partes.length == 4 && partes[1].equals("productos") && partes[3].equals("disponible")) {
             cambiarDisponible(req, resp, partes[2]);

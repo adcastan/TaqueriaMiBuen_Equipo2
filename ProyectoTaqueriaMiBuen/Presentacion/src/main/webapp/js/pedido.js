@@ -1213,8 +1213,9 @@ async function abrirSelectorMesas(titulo, instruccion, accion) {
         const libre = m.estado === 'DISPONIBLE' && !m.juntoAMesa && m.idMesa !== idMesa;
         return '<button class="table-tile ' + (libre ? '' : 'occupied') + '" ' + (libre ? '' : 'disabled')
                 + ' onclick="' + accion + '(' + m.idMesa + ', ' + m.numero + ')">'
-                + '<span class="table-number">' + String(m.numero).padStart(2, '0') + '</span>'
-                + '<span class="table-state">' + (libre ? 'LIBRE' : 'NO DISPONIBLE') + '</span></button>';
+                // Numero de mesa grande y su estado; las que no se pueden elegir salen apagadas
+                + '<strong>Mesa ' + m.numero + '</strong>'
+                + '<span class="table-state">' + (libre ? 'Libre' : (m.juntoAMesa ? 'Junto a mesa ' + m.juntoAMesa : 'No disponible')) + '</span></button>';
     }).join('');
     abrirModal('<div class="modal-basic"><h2>' + titulo + '</h2><p>' + instruccion + '</p>'
             + '<div class="table-grid selector-mesas">' + botones + '</div>'

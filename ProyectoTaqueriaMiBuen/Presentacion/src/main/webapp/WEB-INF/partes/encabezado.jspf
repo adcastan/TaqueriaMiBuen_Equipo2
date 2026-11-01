@@ -15,7 +15,8 @@ Cada pagina pone el atributo "seccion" antes de incluirlo para marcar el boton a
 %>
 <header class="app-header">
     <a class="brand" href="<%= esCocinero ? "kds.jsp" : "mesas.jsp"%>">
-        <span class="brand-mark">A</span>
+        <%-- Logo de la taqueria (viene de la presentacion del proyecto) --%>
+        <img class="brand-logo" src="assets/logo-mi-buen.png" alt="Taqueria Mi Buen" width="44" height="44">
         <div>
             <strong>MI BUEN <span class="muted">/ ASADA POS</span></strong>
             <small>Tu turno. Tu ritmo. Tu estacion.</small>

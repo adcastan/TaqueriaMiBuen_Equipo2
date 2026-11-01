@@ -25,7 +25,7 @@ Toda la logica de la pantalla esta en pedido.js.
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Tomar pedido - Mi Buen</title>
-        <link rel="icon" href="assets/brand.svg" type="image/svg+xml">
+        <link rel="icon" href="assets/logo-mi-buen.png" type="image/png">
         <link rel="stylesheet" href="estilos.css">
     </head>
     <body data-roles="${sessionScope.roles}">

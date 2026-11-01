@@ -27,4 +27,7 @@ public interface IKdsDAO {
 
     // Segundos desde el ultimo latido, -1 si nunca hubo.
     public int segundosDesdeUltimoLatido();
+
+    // Avanza todos los productos de una comanda (pedido + ronda) de un solo toque
+    public int cambiarEstadoComanda(int idPedido, int ronda, EstadoPreparacion nuevo);
 }

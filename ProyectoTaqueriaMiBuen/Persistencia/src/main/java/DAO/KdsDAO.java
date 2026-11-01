@@ -5,6 +5,7 @@ import Enums.EstadoPedido;
 import Enums.EstadoPreparacion;
 import jakarta.persistence.LockModeType;
 import Entidades.DetallePedido;
+import Entidades.Pedido;
 import IAccesoDatos.IKdsDAO;
 import jakarta.persistence.EntityManager;
 import java.util.List;
@@ -79,6 +80,51 @@ public class KdsDAO implements IKdsDAO{
                 em.getTransaction().rollback();
             }
             throw new RuntimeException("No se pudo cambiar el estado: " + e.getMessage(), e);
+        } finally {
+            em.close();
+        }
+    }
+
+    /**
+     * Avanza TODA una comanda (los productos de un pedido que llegaron en la
+     * misma ronda) de un solo toque: "Empezar comanda" o "Comanda lista".
+     * Todo va en una sola transaccion con el pedido bloqueado, asi no se cruza
+     * con un mesero que este quitando algo en ese momento. Los productos que
+     * ya estaban listos o cancelados se saltan. Regresa cuantos cambio.
+     */
+    @Override
+    public int cambiarEstadoComanda(int idPedido, int ronda, EstadoPreparacion nuevo) {
+        if (nuevo != EstadoPreparacion.EN_PREPARACION && nuevo != EstadoPreparacion.LISTO) {
+            throw new IllegalArgumentException("Desde cocina solo se marca en preparacion o listo");
+        }
+        EntityManager em = JPAUtil.obtenerEntityManager();
+        try {
+            em.getTransaction().begin();
+            Pedido pedido = em.find(Pedido.class, idPedido, LockModeType.PESSIMISTIC_WRITE);
+            if (pedido == null || pedido.getEstado() == EstadoPedido.CANCELADO) {
+                throw new IllegalStateException("Esa comanda ya no existe o se cancelo");
+            }
+            int cambiados = 0;
+            for (DetallePedido d : pedido.getDetalles()) {
+                if (d.getRonda() != ronda) {
+                    continue;
+                }
+                // Empezar: solo lo que sigue en cola. Lista: todo lo que falta (en cola o preparandose)
+                if (nuevo == EstadoPreparacion.EN_PREPARACION && d.getEstadoPreparacion() == EstadoPreparacion.PENDIENTE) {
+                    d.iniciarPreparacion();
+                    cambiados++;
+                } else if (nuevo == EstadoPreparacion.LISTO && d.estaPendienteEnCocina()) {
+                    d.marcarListo();
+                    cambiados++;
+                }
+            }
+            em.getTransaction().commit();
+            return cambiados;
+        } catch (Exception e) {
+            if (em.getTransaction().isActive()) {
+                em.getTransaction().rollback();
+            }
+            throw new RuntimeException("No se pudo cambiar la comanda: " + e.getMessage(), e);
         } finally {
             em.close();
         }

@@ -66,6 +66,31 @@ public class KdsService implements IKdsService {
      * Revisa el ultimo latido.
      * Si el monitor nunca se conecto regresa false.
      */
+    /**
+     * "Empezar comanda" o "Comanda lista": cambia todos los productos de la
+     * comanda de una vez, para que la parrilla no tenga que tocar producto por
+     * producto. Regresa cuantos productos cambio.
+     */
+    @Override
+    public int cambiarEstadoComanda(int idPedido, int ronda, String estado) {
+        EstadoPreparacion nuevo;
+        try {
+            nuevo = EstadoPreparacion.valueOf(estado);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            throw new NegocioException("Estado no valido: " + estado);
+        }
+        try {
+            return kdsDAO.cambiarEstadoComanda(idPedido, ronda, nuevo);
+        } catch (RuntimeException e) {
+            // Los avisos de regla (comanda cancelada) llegan como causa
+            Throwable causa = e.getCause();
+            if (causa instanceof IllegalStateException || causa instanceof IllegalArgumentException) {
+                throw new NegocioException(causa.getMessage());
+            }
+            throw e;
+        }
+    }
+
     @Override
     public boolean hayKdsConectado() {
         int segundos = kdsDAO.segundosDesdeUltimoLatido();
