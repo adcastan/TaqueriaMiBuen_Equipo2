@@ -9,7 +9,8 @@ import jakarta.persistence.Table;
 import java.io.Serializable;
 
 /**
- * Proveedor de insumos.
+ * Proveedor que le surte insumos a la taqueria (CU-06).
+ * No se borra: si ya no se le compra se da de baja con activo = false.
  *
  * @author Equipo 2
  */
@@ -31,13 +32,22 @@ public class Proveedor implements Serializable {
     @Column(name = "correo", length = 100)
     private String correo;
 
+    // Que le surte a la taqueria (carne, tortillas, refrescos...)
+    @Column(name = "que_surte", length = 200)
+    private String queSurte;
+
+    // false si ya no se le compra (baja logica)
+    @Column(name = "activo", nullable = false)
+    private boolean activo = true;
+
     public Proveedor() {
     }
 
-    public Proveedor(String nombre, String telefono, String correo) {
+    public Proveedor(String nombre, String telefono, String correo, String queSurte) {
         this.nombre = nombre;
         this.telefono = telefono;
         this.correo = correo;
+        this.queSurte = queSurte;
     }
 
     public Integer getIdProveedor() {
@@ -70,6 +80,22 @@ public class Proveedor implements Serializable {
 
     public void setCorreo(String correo) {
         this.correo = correo;
+    }
+
+    public String getQueSurte() {
+        return queSurte;
+    }
+
+    public void setQueSurte(String queSurte) {
+        this.queSurte = queSurte;
+    }
+
+    public boolean isActivo() {
+        return activo;
+    }
+
+    public void setActivo(boolean activo) {
+        this.activo = activo;
     }
 
     @Override

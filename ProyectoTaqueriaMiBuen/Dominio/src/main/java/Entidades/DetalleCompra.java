@@ -9,9 +9,11 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 /**
- * Ingrediente comprado dentro de una compra, con su cantidad y costo.
+ * Un renglon de una compra: que insumo, cuanto y a que costo.
+ * La cantidad lleva 3 decimales porque hay cosas que se compran por kilo.
  *
  * @author Equipo 2
  */
@@ -32,18 +34,22 @@ public class DetalleCompra implements Serializable {
     @JoinColumn(name = "id_ingrediente", nullable = false)
     private Ingrediente ingrediente;
 
-    @Column(name = "cantidad", nullable = false)
-    private double cantidad;
+    @Column(name = "cantidad", nullable = false, precision = 10, scale = 3)
+    private BigDecimal cantidad;
 
-    @Column(name = "costo_unitario", nullable = false)
-    private double costoUnitario;
+    // Precio por unidad (por kilo, por pieza...)
+    @Column(name = "costo_unitario", nullable = false, precision = 10, scale = 2)
+    private BigDecimal costoUnitario;
 
     public DetalleCompra() {
     }
 
-    public DetalleCompra(Compra compra, Ingrediente ingrediente, double cantidad, double costoUnitario) {
-        if (cantidad <= 0) {
+    public DetalleCompra(Compra compra, Ingrediente ingrediente, BigDecimal cantidad, BigDecimal costoUnitario) {
+        if (cantidad == null || cantidad.signum() <= 0) {
             throw new IllegalArgumentException("La cantidad comprada debe ser mayor a cero");
+        }
+        if (costoUnitario == null || costoUnitario.signum() < 0) {
+            throw new IllegalArgumentException("El costo no puede ser negativo");
         }
         this.compra = compra;
         this.ingrediente = ingrediente;
@@ -53,10 +59,6 @@ public class DetalleCompra implements Serializable {
 
     public Integer getIdDetalleCompra() {
         return idDetalleCompra;
-    }
-
-    public void setIdDetalleCompra(Integer idDetalleCompra) {
-        this.idDetalleCompra = idDetalleCompra;
     }
 
     public Compra getCompra() {
@@ -75,19 +77,19 @@ public class DetalleCompra implements Serializable {
         this.ingrediente = ingrediente;
     }
 
-    public double getCantidad() {
+    public BigDecimal getCantidad() {
         return cantidad;
     }
 
-    public void setCantidad(double cantidad) {
+    public void setCantidad(BigDecimal cantidad) {
         this.cantidad = cantidad;
     }
 
-    public double getCostoUnitario() {
+    public BigDecimal getCostoUnitario() {
         return costoUnitario;
     }
 
-    public void setCostoUnitario(double costoUnitario) {
+    public void setCostoUnitario(BigDecimal costoUnitario) {
         this.costoUnitario = costoUnitario;
     }
 }

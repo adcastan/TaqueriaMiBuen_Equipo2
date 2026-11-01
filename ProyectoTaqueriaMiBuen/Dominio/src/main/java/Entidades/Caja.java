@@ -9,10 +9,13 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Turno de caja abierto por un usuario. Al cerrarse se genera su corte.
+ * Caja del dia (CU-04 Administrar Caja). Hay una sola caja abierta a la vez y
+ * la comparten varias personas (dueno, cajeras, hijo del dueno); por eso cada
+ * pago guarda quien cobro. Aqui se guarda quien la abrio y con cuanto.
  *
  * @author Equipo 2
  */
@@ -25,6 +28,7 @@ public class Caja implements Serializable {
     @Column(name = "id_caja")
     private Integer idCaja;
 
+    // Quien abrio la caja
     @ManyToOne(optional = false)
     @JoinColumn(name = "id_usuario", nullable = false)
     private Usuario usuario;
@@ -35,8 +39,9 @@ public class Caja implements Serializable {
     @Column(name = "fecha_cierre")
     private LocalDateTime fechaCierre;
 
-    @Column(name = "monto_inicial", nullable = false)
-    private double montoInicial;
+    // Fondo con el que empieza el dia (para dar cambio)
+    @Column(name = "monto_inicial", nullable = false, precision = 10, scale = 2)
+    private BigDecimal montoInicial = BigDecimal.ZERO;
 
     @Column(name = "abierta", nullable = false)
     private boolean abierta;
@@ -49,24 +54,27 @@ public class Caja implements Serializable {
     }
 
     // Deja la caja abierta con el dinero con el que empieza el turno
-    public void abrir(double montoInicial) {
+    public void abrir(BigDecimal montoInicial) {
         this.montoInicial = montoInicial;
         this.fechaApertura = LocalDateTime.now();
-        this.fechaCierre = null;
         this.abierta = true;
     }
 
     /**
-     * Cierra la caja y prepara el corte con el total vendido y el efectivo
-     * contado.
+     * Cierra la caja y arma el corte con lo que entro en efectivo. El corte
+     * separado por metodo de pago lo termina el siguiente equipo; por ahora
+     * se llenan en cero los totales que todavia no se calculan.
      */
-    public Corte cerrar(double totalVentas, double efectivoContado) {
+    public Corte cerrar(Usuario quienCierra, BigDecimal ventasEfectivo, BigDecimal ventasTarjeta,
+            BigDecimal ventasTransferencia, BigDecimal efectivoContado) {
         if (!abierta) {
             throw new IllegalStateException("La caja ya esta cerrada");
         }
         this.abierta = false;
         this.fechaCierre = LocalDateTime.now();
-        return new Corte(this, totalVentas, montoInicial + totalVentas, efectivoContado);
+        // Al cajon solo entra el efectivo: fondo inicial + lo cobrado en efectivo
+        BigDecimal esperado = montoInicial.add(ventasEfectivo);
+        return new Corte(this, quienCierra, ventasEfectivo, ventasTarjeta, ventasTransferencia, esperado, efectivoContado);
     }
 
     public Integer getIdCaja() {
@@ -101,11 +109,11 @@ public class Caja implements Serializable {
         this.fechaCierre = fechaCierre;
     }
 
-    public double getMontoInicial() {
+    public BigDecimal getMontoInicial() {
         return montoInicial;
     }
 
-    public void setMontoInicial(double montoInicial) {
+    public void setMontoInicial(BigDecimal montoInicial) {
         this.montoInicial = montoInicial;
     }
 

@@ -9,6 +9,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 /**
  * Extra que el cliente pidio en un detalle. Guarda el costo que tenia el extra
@@ -33,13 +34,13 @@ public class DetalleExtra implements Serializable {
     @JoinColumn(name = "id_extra", nullable = false)
     private IngredienteExtra extra;
 
-    @Column(name = "costo_extra", nullable = false)
-    private double costoExtra;
+    @Column(name = "costo_extra", nullable = false, precision = 10, scale = 2)
+    private BigDecimal costoExtra;
 
     public DetalleExtra() {
     }
 
-    public DetalleExtra(DetallePedido detalle, IngredienteExtra extra, double costoExtra) {
+    public DetalleExtra(DetallePedido detalle, IngredienteExtra extra, BigDecimal costoExtra) {
         this.detalle = detalle;
         this.extra = extra;
         this.costoExtra = costoExtra;
@@ -69,11 +70,11 @@ public class DetalleExtra implements Serializable {
         this.extra = extra;
     }
 
-    public double getCostoExtra() {
+    public BigDecimal getCostoExtra() {
         return costoExtra;
     }
 
-    public void setCostoExtra(double costoExtra) {
+    public void setCostoExtra(BigDecimal costoExtra) {
         this.costoExtra = costoExtra;
     }
 }

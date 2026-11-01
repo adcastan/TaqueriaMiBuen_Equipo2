@@ -5,11 +5,17 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.io.Serializable;
 
 /**
- * Insumos del inventario.
+ * Insumo de la taqueria (CU-07): carne, tortillas, refrescos, desechables...
+ *
+ * Solo es catalogo: el cliente decidio no llevar existencias, asi que aqui
+ * no hay cantidades ni stock minimo. Se guarda el nombre, la unidad y con que
+ * proveedor se compra normalmente.
  *
  * @author Equipo 2
  */
@@ -25,23 +31,26 @@ public class Ingrediente implements Serializable {
     @Column(name = "nombre", nullable = false, unique = true, length = 80)
     private String nombre;
 
+    // kg, pza, lt...
     @Column(name = "unidad", nullable = false, length = 15)
     private String unidad;
 
-    @Column(name = "existencia", nullable = false)
-    private double existencia;
+    // Proveedor con el que normalmente se compra; puede no tener
+    @ManyToOne
+    @JoinColumn(name = "id_proveedor")
+    private Proveedor proveedor;
 
-    @Column(name = "stock_minimo", nullable = false)
-    private double stockMinimo;
+    // false si ya no se usa (baja logica)
+    @Column(name = "activo", nullable = false)
+    private boolean activo = true;
 
     public Ingrediente() {
     }
 
-    public Ingrediente(String nombre, String unidad, double existencia, double stockMinimo) {
+    public Ingrediente(String nombre, String unidad, Proveedor proveedor) {
         this.nombre = nombre;
         this.unidad = unidad;
-        this.existencia = existencia;
-        this.stockMinimo = stockMinimo;
+        this.proveedor = proveedor;
     }
 
     public Integer getIdIngrediente() {
@@ -68,24 +77,24 @@ public class Ingrediente implements Serializable {
         this.unidad = unidad;
     }
 
-    public double getExistencia() {
-        return existencia;
+    public Proveedor getProveedor() {
+        return proveedor;
     }
 
-    public void setExistencia(double existencia) {
-        this.existencia = existencia;
+    public void setProveedor(Proveedor proveedor) {
+        this.proveedor = proveedor;
     }
 
-    public double getStockMinimo() {
-        return stockMinimo;
+    public boolean isActivo() {
+        return activo;
     }
 
-    public void setStockMinimo(double stockMinimo) {
-        this.stockMinimo = stockMinimo;
+    public void setActivo(boolean activo) {
+        this.activo = activo;
     }
 
     @Override
     public String toString() {
-        return "Ingrediente{nombre=" + nombre + ", existencia=" + existencia + " " + unidad + "}";
+        return "Ingrediente{nombre=" + nombre + ", unidad=" + unidad + "}";
     }
 }

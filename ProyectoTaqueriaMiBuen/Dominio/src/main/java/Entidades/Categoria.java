@@ -29,6 +29,10 @@ public class Categoria implements Serializable {
     @Column(name = "orden", nullable = false)
     private int orden;
 
+    // false si la categoria ya no se usa en el menu (baja logica)
+    @Column(name = "activo", nullable = false)
+    private boolean activo = true;
+
     public Categoria() {
     }
 
@@ -59,6 +63,14 @@ public class Categoria implements Serializable {
 
     public void setOrden(int orden) {
         this.orden = orden;
+    }
+
+    public boolean isActivo() {
+        return activo;
+    }
+
+    public void setActivo(boolean activo) {
+        this.activo = activo;
     }
 
     @Override

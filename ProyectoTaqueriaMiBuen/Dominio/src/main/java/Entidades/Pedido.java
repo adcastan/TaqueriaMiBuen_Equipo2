@@ -1,5 +1,6 @@
 package Entidades;
 
+import Enums.CanalPedido;
 import Enums.EstadoPedido;
 import Herramientas.Dinero;
 import jakarta.persistence.CascadeType;
@@ -19,6 +20,8 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.io.Serializable;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -55,6 +58,12 @@ public abstract class Pedido implements Serializable {
     @Column(name = "estado", nullable = false, length = 10)
     private EstadoPedido estado = EstadoPedido.ABIERTO;
 
+    // Por donde llego: mesa, mostrador, telefono, WhatsApp, DiDi Food o Uber Eats.
+    // Decide el precio (las apps tienen el suyo) y sale en el reporte de ventas
+    @Enumerated(EnumType.STRING)
+    @Column(name = "canal", nullable = false, length = 10)
+    private CanalPedido canal = CanalPedido.MESA;
+
     // Usuario que capturo el pedido
     @ManyToOne(optional = false)
     @JoinColumn(name = "id_usuario", nullable = false)
@@ -76,8 +85,21 @@ public abstract class Pedido implements Serializable {
     @Column(name = "clave_creacion", unique = true, length = 40)
     private String claveCreacion;
 
-    @Column(name = "total")
-    private Double total;
+    // Descuento a toda la cuenta (lo aplica el cajero en CU-05). Hasta el limite
+    // configurado no pide permiso; arriba del limite guarda quien lo autorizo
+    @Column(name = "descuento", nullable = false, precision = 10, scale = 2)
+    private BigDecimal descuento = BigDecimal.ZERO;
+
+    @Column(name = "motivo_descuento", length = 150)
+    private String motivoDescuento;
+
+    @ManyToOne
+    @JoinColumn(name = "id_usuario_descuento")
+    private Usuario usuarioDescuento;
+
+    // Se congela al cerrar el pedido (cuando piden la cuenta)
+    @Column(name = "total", precision = 10, scale = 2)
+    private BigDecimal total;
 
     @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL)
     private List<DetallePedido> detalles = new ArrayList<>();
@@ -167,17 +189,47 @@ public abstract class Pedido implements Serializable {
     }
 
     // Suma de los importes de los productos que no estan cancelados
-    public double calcularSubtotal() {
-        double subtotal = 0;
+    public BigDecimal calcularSubtotal() {
+        BigDecimal subtotal = BigDecimal.ZERO;
         for (DetallePedido d : detallesActivos()) {
-            subtotal += d.calcularImporte();
+            subtotal = subtotal.add(d.calcularImporte());
         }
         return Dinero.redondear(subtotal);
     }
 
-    // En un pedido normal el total es el subtotal; el de domicilio le suma el envio
-    public double calcularTotal() {
-        return calcularSubtotal();
+    // Lo que se cobra: subtotal menos descuento. El de domicilio le suma el envio
+    public BigDecimal calcularTotal() {
+        return Dinero.redondear(calcularSubtotal().subtract(descuento));
+    }
+
+    /**
+     * Aplica un descuento a la cuenta. Si pasa del limite (porcentaje que el
+     * dueno configura, empieza en 10%) necesita quien lo autorice: el
+     * administrador con su PIN. Eso lo revisa el servicio de cobro; aqui solo
+     * se guarda y se valida que no sea mas que la cuenta.
+     */
+    public void aplicarDescuento(BigDecimal monto, String motivo, Usuario autorizo) {
+        if (monto == null || monto.signum() < 0) {
+            throw new IllegalArgumentException("El descuento no puede ser negativo");
+        }
+        if (monto.compareTo(calcularSubtotal()) > 0) {
+            throw new IllegalArgumentException("El descuento no puede ser mayor que la cuenta");
+        }
+        this.descuento = Dinero.redondear(monto);
+        this.motivoDescuento = motivo;
+        this.usuarioDescuento = autorizo;
+    }
+
+    /**
+     * Que porcentaje del subtotal representa un descuento. Sirve para
+     * compararlo contra el limite que puede dar el cajero sin permiso.
+     */
+    public BigDecimal porcentajeDe(BigDecimal monto) {
+        BigDecimal subtotal = calcularSubtotal();
+        if (subtotal.signum() == 0) {
+            return BigDecimal.ZERO;
+        }
+        return monto.multiply(BigDecimal.valueOf(100)).divide(subtotal, 2, RoundingMode.HALF_UP);
     }
 
     // true si todavia se le pueden agregar o quitar productos
@@ -274,12 +326,32 @@ public abstract class Pedido implements Serializable {
         this.claveCreacion = claveCreacion;
     }
 
-    public Double getTotal() {
+    public BigDecimal getTotal() {
         return total;
     }
 
-    public void setTotal(Double total) {
+    public void setTotal(BigDecimal total) {
         this.total = total;
+    }
+
+    public CanalPedido getCanal() {
+        return canal;
+    }
+
+    public void setCanal(CanalPedido canal) {
+        this.canal = canal;
+    }
+
+    public BigDecimal getDescuento() {
+        return descuento;
+    }
+
+    public String getMotivoDescuento() {
+        return motivoDescuento;
+    }
+
+    public Usuario getUsuarioDescuento() {
+        return usuarioDescuento;
     }
 
     public List<DetallePedido> getDetalles() {

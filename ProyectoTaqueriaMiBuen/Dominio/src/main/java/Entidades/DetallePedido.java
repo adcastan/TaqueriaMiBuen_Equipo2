@@ -1,5 +1,6 @@
 package Entidades;
 
+import Enums.CanalPedido;
 import Enums.EstadoPreparacion;
 import Herramientas.Dinero;
 import jakarta.persistence.CascadeType;
@@ -15,6 +16,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,12 +53,13 @@ public class DetallePedido implements Serializable {
     @JoinColumn(name = "id_producto", nullable = false)
     private Producto producto;
 
-    @Column(name = "cantidad", nullable = false)
-    private int cantidad;
+    // Piezas (enteros) o kilos (con decimales, ej. 0.500), segun el producto
+    @Column(name = "cantidad", nullable = false, precision = 7, scale = 3)
+    private BigDecimal cantidad;
 
     // Precio del producto al momento de pedirlo, por si despues cambia en el menu (RN-02)
-    @Column(name = "precio_unitario", nullable = false)
-    private double precioUnitario;
+    @Column(name = "precio_unitario", nullable = false, precision = 10, scale = 2)
+    private BigDecimal precioUnitario;
 
     @Column(name = "nota_cocina", length = LARGO_MAXIMO_NOTA)
     private String notaCocina;
@@ -96,42 +99,95 @@ public class DetallePedido implements Serializable {
     @Column(name = "fecha_cancelacion")
     private LocalDateTime fechaCancelacion;
 
+    // Cortesia o comida de empleado: sale de cocina pero no se cobra (CU-05).
+    // Queda registrado para quien fue, para que el dueno lo vea en el reporte
+    @Column(name = "cortesia", nullable = false)
+    private boolean cortesia = false;
+
+    @Column(name = "cortesia_para", length = 100)
+    private String cortesiaPara;
+
+    // Cuando la cuenta se divide por consumo, a que persona le toca (1, 2, 3...)
+    @Column(name = "parte")
+    private Integer parte;
+
     @OneToMany(mappedBy = "detalle", cascade = CascadeType.ALL)
     private List<DetalleExtra> extras = new ArrayList<>();
 
     public DetallePedido() {
     }
 
-    public DetallePedido(Producto producto, int cantidad, String notaCocina) {
-        validarCantidad(cantidad);
+    /**
+     * Crea el renglon con el precio que le toca segun el canal del pedido:
+     * si el pedido viene de DiDi o Uber se usa el precio de apps (RN-11).
+     * El precio se copia aqui y ya no cambia aunque cambien el menu (RN-02).
+     */
+    public DetallePedido(Producto producto, BigDecimal cantidad, String notaCocina, CanalPedido canal) {
+        validarCantidad(producto, cantidad);
         this.producto = producto;
         this.cantidad = cantidad;
         this.notaCocina = notaCocina;
-        this.precioUnitario = producto.getPrecio();
+        this.precioUnitario = producto.precioPara(canal);
     }
 
     /**
-     * Revisa que la cantidad tenga sentido: minimo una pieza y maximo 99.
+     * Revisa que la cantidad tenga sentido para ese producto:
+     * - mayor a cero y maximo 99;
+     * - si se vende por pieza tiene que ser entera (no se vende medio taco).
+     * Lo de kilo si acepta decimales (0.5 kg de carne).
      */
-    public static void validarCantidad(int cantidad) {
-        if (cantidad <= 0) {
+    public static void validarCantidad(Producto producto, BigDecimal cantidad) {
+        if (cantidad == null || cantidad.signum() <= 0) {
             throw new IllegalArgumentException("La cantidad debe ser mayor a cero");
         }
-        if (cantidad > CANTIDAD_MAXIMA) {
+        if (cantidad.compareTo(BigDecimal.valueOf(CANTIDAD_MAXIMA)) > 0) {
             throw new IllegalArgumentException("La cantidad maxima por producto es " + CANTIDAD_MAXIMA);
+        }
+        // stripTrailingZeros().scale() > 0 quiere decir que trae decimales (ej. 2.5)
+        boolean traeDecimales = cantidad.stripTrailingZeros().scale() > 0;
+        if (producto != null && !producto.seVendePorKilo() && traeDecimales) {
+            throw new IllegalArgumentException(producto.getNombre() + " se vende por pieza; la cantidad debe ser entera");
         }
     }
 
     /**
      * Importe del renglon: (precio unitario + costo de los extras) x cantidad.
      * Es la formula del paso 3 del subflujo "Agregar producto".
+     * Si es cortesia el importe es cero: se registra pero no se cobra.
      */
-    public double calcularImporte() {
-        double costoExtras = 0;
-        for (DetalleExtra e : extras) {
-            costoExtras += e.getCostoExtra();
+    public BigDecimal calcularImporte() {
+        if (cortesia) {
+            return Dinero.CERO;
         }
-        return Dinero.redondear(cantidad * (precioUnitario + costoExtras));
+        BigDecimal costoExtras = BigDecimal.ZERO;
+        for (DetalleExtra e : extras) {
+            costoExtras = costoExtras.add(e.getCostoExtra());
+        }
+        return Dinero.redondear(precioUnitario.add(costoExtras).multiply(cantidad));
+    }
+
+    /**
+     * Marca el renglon como cortesia (o comida de empleado). La da el cajero y
+     * solo queda registrado para quien fue (decision del cliente).
+     */
+    public void marcarCortesia(String paraQuien) {
+        if (paraQuien == null || paraQuien.isBlank()) {
+            throw new IllegalArgumentException("Indica para quien es la cortesia");
+        }
+        this.cortesia = true;
+        this.cortesiaPara = paraQuien.trim();
+    }
+
+    /**
+     * Si el producto no pasa por la parrilla (bebidas, guacamole) no tiene caso
+     * mandarlo al monitor: se marca LISTO desde que se envia y lo entrega el
+     * mesero (RN-08).
+     */
+    public void marcarListoSiNoPasaPorParrilla() {
+        if (producto != null && !producto.isPasaPorParrilla()
+                && estadoPreparacion == EstadoPreparacion.PENDIENTE) {
+            estadoPreparacion = EstadoPreparacion.LISTO;
+        }
     }
 
     /**
@@ -158,11 +214,11 @@ public class DetallePedido implements Serializable {
     }
 
     // Cambia las piezas, pero solo si el producto sigue en la cola
-    public void cambiarCantidad(int nuevaCantidad) {
+    public void cambiarCantidad(BigDecimal nuevaCantidad) {
         if (!sePuedeModificar()) {
             throw new IllegalStateException("Este producto ya se esta preparando y no se puede modificar");
         }
-        validarCantidad(nuevaCantidad);
+        validarCantidad(producto, nuevaCantidad);
         this.cantidad = nuevaCantidad;
     }
 
@@ -230,19 +286,19 @@ public class DetallePedido implements Serializable {
         this.producto = producto;
     }
 
-    public int getCantidad() {
+    public BigDecimal getCantidad() {
         return cantidad;
     }
 
-    public void setCantidad(int cantidad) {
+    public void setCantidad(BigDecimal cantidad) {
         this.cantidad = cantidad;
     }
 
-    public double getPrecioUnitario() {
+    public BigDecimal getPrecioUnitario() {
         return precioUnitario;
     }
 
-    public void setPrecioUnitario(double precioUnitario) {
+    public void setPrecioUnitario(BigDecimal precioUnitario) {
         this.precioUnitario = precioUnitario;
     }
 
@@ -320,6 +376,22 @@ public class DetallePedido implements Serializable {
 
     public void setExtras(List<DetalleExtra> extras) {
         this.extras = extras;
+    }
+
+    public boolean isCortesia() {
+        return cortesia;
+    }
+
+    public String getCortesiaPara() {
+        return cortesiaPara;
+    }
+
+    public Integer getParte() {
+        return parte;
+    }
+
+    public void setParte(Integer parte) {
+        this.parte = parte;
     }
 
     @Override
