@@ -1,8 +1,10 @@
-# Taquería Mi Buen - Caso de uso Administrar Pedidos
+# Taquería Mi Buen - Caso de uso Administrar Pedidos (CU-02)
 
-Equipo 2 · Iteración de Elaboración E1
+Equipo 2 · Iteración de Elaboración E1 · versión 2.0 (01/Nov/2026, José Alfredo Guzmán Moreno)
 
-Este paquete trae el proyecto `ProyectoTaqueriaMiBuen` (la versión por capas en Java que viene de la rama `Avance-4`) con el caso de uso priorizado **Administrar Pedidos** terminado, más la carpeta `BD` con los scripts de la base. Abajo va qué se hizo, cómo correrlo, qué se encontró y qué se probó.
+Este paquete trae el proyecto `ProyectoTaqueriaMiBuen` (Java por capas, 5 módulos Maven) con el caso de uso priorizado **CU-02 Administrar Pedidos** terminado, y la carpeta `BD` con los scripts de la base. **Solo se desarrolló CU-02**; los demás casos de uso (CU-00 a CU-10, sin el CU-11 que se eliminó) están documentados y la base de datos ya los soporta, para que el siguiente equipo los construya con el mismo patrón.
+
+La versión 2.0 deja el código, la base y los documentos diciendo lo mismo. Las decisiones que se tomaron están en el punto 5.
 
 ---
 
@@ -11,83 +13,70 @@ Este paquete trae el proyecto `ProyectoTaqueriaMiBuen` (la versión por capas en
 Se necesita: JDK 17 (o más nuevo), Apache Tomcat 10.1, MySQL 8 y NetBeans.
 
 1. **Base de datos.** En MySQL Workbench corran, en este orden:
-   - `BD/ScriptBDTaqueriaMiBuen.sql`: crea la base desde cero con las 8 mesas y el menú.
-   - `BD/DatosPrueba.sql`: crea cinco empleados de prueba y deja una caja abierta.
+   - `BD/ScriptBDTaqueriaMiBuen.sql`: crea la base desde cero (30 tablas) con las 8 mesas y un menú de ejemplo.
+   - `BD/DatosPrueba.sql`: crea seis empleados de prueba y deja una caja abierta.
 
-   Si ya tienen la base vieja con datos y no la quieren perder, en lugar del primero corran `BD/ActualizacionAdministrarPedido.sql`: solo agrega lo nuevo y pasa los datos que ya existían. Saquen respaldo antes, por si las moscas.
+   Si ya tenían la base de una versión anterior, bórrenla primero (`DROP DATABASE taqueria_mi_buen;`): la 2.0 cambia varias tablas. El script de actualización viejo ya no aplica y se quitó.
 2. **Conexión.** En `Persistencia/src/main/resources/META-INF/persistence.xml` pongan el usuario y la contraseña de su MySQL.
-3. **Compilar.** Abran en NetBeans la carpeta `ProyectoTaqueriaMiBuen` (el proyecto padre) y denle **Clean and Build** al padre. Ahora sí arma los cinco módulos en orden y deja el WAR en `Presentacion/target/TaqueriaMiBuen.war`.
+3. **Compilar.** Abran en NetBeans la carpeta `ProyectoTaqueriaMiBuen` (el proyecto padre) y denle **Clean and Build** al padre. Arma los cinco módulos en orden y deja el WAR en `Presentacion/target/TaqueriaMiBuen.war`.
 4. **Correr.** Denle Run al módulo Presentacion con Tomcat 10.1, o copien el WAR a `tomcat/webapps`. Se abre en `http://localhost:8080/TaqueriaMiBuen/`.
+5. **Abran el monitor de cocina** (entren con el PIN del cocinero) antes de mandar pedidos. Si no hay ningún monitor conectado, el sistema avisa «Error de conexión con cocina» y manda el ticket de respaldo, como pide el caso de uso.
 
-Empleados de prueba (los PIN se guardan cifrados con BCrypt, igual que en `Cuenta.java`):
+Empleados de prueba (los PIN se guardan cifrados con BCrypt). Una cuenta puede tener varios roles:
 
-| Nombre | Rol | PIN |
+| Nombre | Roles | PIN |
 |---|---|---|
 | Laura Mendez | Administrador | 1111 |
 | Carlos Ruiz | Cajero | 2222 |
 | José Núñez | Mesero | 3333 |
 | María López | Mesero | 4444 |
 | Pedro García | Cocinero | 5555 |
+| Luis Morales | Cajero, Mesero y Cocinero | 6666 |
 
 ---
 
-## 2. Qué quedó del caso de uso
+## 2. Qué hace el caso de uso (Detallado CU-02 v1.2)
 
-| Parte del caso de uso | Qué hace ahora el sistema |
+| Parte del caso de uso | Qué hace el sistema |
 |---|---|
-| 2.1 Flujo básico | El mesero elige una mesa libre, indica el número de personas, agrega productos y le da «Enviar a cocina». El pedido se guarda con folio, fecha, mesa, personas y mesero. Los productos llegan al monitor de cocina «En cola», la mesa se pone en rojo, sale «Comanda enviada a cocina» y la pantalla regresa al mapa de mesas. |
-| 2.2.1 Tipar pedido | Comer aquí pide de 1 a 20 personas. Para llevar pide el nombre del cliente. A domicilio pide nombre, teléfono de 10 dígitos y dirección; las referencias son opcionales. Se valida en la pantalla **y** en el servidor. |
-| 2.2.2 Agregar producto | Ventana con la cantidad (1 a 99), los extras con su costo y una nota para cocina de máximo 150 letras. El importe es (precio + extras) x cantidad. Las bebidas sin extras entran directo con cantidad 1. |
-| 2.2.3 Para llevar / domicilio | Se crean sin mesa y aparecen en «Pedidos para llevar y a domicilio activos». En cocina se ve si es para llevar o a domicilio. |
-| 2.2.4 Modificar pedido | El ticket se ve agrupado por rondas, con la hora y el estado de cada producto: NUEVO, EN COLA, EN PREPARACION, LISTO o CANCELADO. Lo que sigue en cola se puede cambiar o quitar, y sale solito del monitor de cocina. Cada envío nuevo es una ronda nueva. |
-| 2.2.5 Cerrar pedido | Ver la inconsistencia 5.1. Cerrar = el cliente pidió la cuenta. La ventana de confirmación muestra los productos, el total y cuántos le faltan a cocina. |
-| 2.2.6 Cancelar pedido | Si lo cancela un mesero pide el PIN de un cajero o administrador y el motivo (si eligen «Otro», el detalle es obligatorio). Se guardan el motivo, quién autorizó y la hora; lo pendiente sale de cocina y la mesa se recalcula. Nunca se borra nada. Si el PIN no sirve sale «Autorizacion no valida». |
-| 2.2.7 Salir sin enviar | Si hay productos nuevos y el mesero se quiere ir, aparece «¿Desea salir sin enviar los productos a cocina?». También pregunta si cierran la pestaña. |
-| 2.2.8 Pedido sin productos | «Enviar a cocina» se apaga y sale «Agregue al menos un producto». |
-| 2.2.9 Datos incompletos | El campo se pone en rojo con «Campo obligatorio». |
-| 2.2.10 Producto en preparación | No se deja cambiar ni quitar («Este producto ya se esta preparando y no se puede modificar»). Solo un cajero lo cancela, con PIN y motivo. |
-| 2.2.11 Producto no disponible | Si al enviar algo ya se dio de baja, sale «Producto no disponible: ...», el renglón se marca en rojo y el menú se recarga. |
-| 2.2.12 Falla de conexión | Sale «Sin conexion. El pedido no se ha enviado», con «Reintentar» y «Cancelar»; lo capturado se queda en pantalla. Reintentar manda la **misma clave de envío** y el servidor no duplica la comanda. |
-| 3.4 Concurrencia | Dos meseros no pueden abrir la misma mesa al mismo tiempo, y los turnos de cocina nunca se repiten aunque manden al mismo tiempo. |
-| 3.5 Importes | Todo con dos decimales exactos (DECIMAL en la base y redondeo en Java). El precio se congela al agregarlo. |
-| 3.6 Trazabilidad | Se guarda quién abrió el pedido, quién le movió al último y a qué hora, y quién agregó cada producto. |
-| Mapa de mesas | Verde = libre, rojo = ocupada, ámbar = ya pidieron la cuenta. Se actualiza cada 3 segundos. |
-| Monitor de cocina | Consulta cada segundo, con los botones «En preparacion» y «Listo». |
+| Flujo básico | El mesero elige una mesa libre, indica el número de personas, agrega productos y le da «Enviar a cocina». El pedido se guarda con folio, fecha, mesa, personas y mesero. Lo de parrilla llega al monitor «En cola», la mesa se pone en rojo, sale «Comanda enviada a cocina» y la pantalla regresa al mapa de mesas. |
+| Tipar pedido y canal | Comer aquí pide de 1 a 20 personas. Para llevar pide el nombre del cliente y por dónde llegó: mostrador, teléfono, WhatsApp, DiDi Food o Uber Eats. A domicilio pide nombre, teléfono de 10 dígitos, dirección, por dónde llegó (teléfono o WhatsApp), el costo de envío según la zona y quién lo lleva (empleado o externo). Se valida en la pantalla **y** en el servidor. |
+| Precio de apps | Si el pedido viene de DiDi Food o Uber Eats se usa el precio de apps de cada producto. El precio se congela al agregarlo. |
+| Agregar producto | Ventana con la cantidad, los extras con su costo y una nota para cocina de máximo 150 letras. Lo que se vende por pieza va de 1 a 99 (entero); lo de kilo se pide con botones de 1/4, 1/2 y 1 kg o escribiendo los kilos. Los paquetes muestran qué incluyen. |
+| Productos que no son de parrilla | Bebidas, guacamole y salsas no van al monitor: quedan «Listo» desde que se envían y los entrega el mesero. |
+| Modificar pedido | Ticket agrupado por rondas con la hora y el estado de cada producto. Lo que sigue en cola se puede cambiar o quitar y sale solito del monitor. Lo que ya se prepara solo lo cancela un cajero o administrador, con PIN y motivo. |
+| Cambiar de mesa | Desde la cuenta, «Cambiar de mesa» deja tocar solo las mesas libres. Pasa todo (productos, rondas y lo que está en parrilla) y queda en la bitácora quién lo hizo y a qué hora. |
+| Juntar mesas | «Juntar con otra mesa» pega una mesa libre a la de la cuenta. En el mapa sale del mismo color con «Junto a mesa N». Al pagar o cancelar todas las cuentas, las mesas se liberan solas. También se puede «Separar mesa». |
+| Cuentas separadas | Una mesa (o un grupo de mesas) puede tener varias cuentas; la pantalla muestra botones para pasar de una a otra. |
+| Cerrar pedido | Cerrar = el cliente pidió la cuenta. El pedido pasa a «Por cobrar», la mesa se pone en ámbar y ya no acepta productos. El cajero cobra y la mesa vuelve a verde. |
+| Cancelar pedido | Si lo cancela un mesero pide el PIN de un cajero o administrador y el motivo. Se guardan el motivo, quién autorizó y la hora. Nunca se borra nada. Si el PIN no sirve sale «Autorizacion no valida». |
+| Producto agotado | Desde el monitor de cocina, el botón «Se acabó…» marca un producto como agotado (lo puede hacer la parrilla o el administrador). El mesero lo ve gris y no lo puede agregar; si se agota mientras captura, al enviar sale «Producto no disponible». Un paquete se agota solo si se acaba una de sus piezas. |
+| Salir sin enviar, pedido sin productos, datos incompletos | Pregunta antes de salir con productos nuevos; «Enviar a cocina» se apaga sin productos; los campos obligatorios se ponen en rojo con «Campo obligatorio». |
+| Falla de conexión | Sale «Sin conexion. El pedido no se ha enviado» con «Reintentar»; reintentar manda la misma clave y el servidor no duplica la comanda. Si el monitor de cocina no está conectado se imprime el ticket de respaldo. |
+| Concurrencia | Dos meseros no pueden abrir la misma mesa al mismo tiempo y los turnos de cocina no se repiten. |
+| Importes | Todo en DECIMAL(10,2) en la base y BigDecimal en Java. |
+| Roles | Una cuenta puede tener varios roles; el menú muestra todo lo que sus roles permiten. Una cajera que cubre de mesera entra con su mismo PIN: el rol Cajero ya puede tomar pedidos. |
 
 ---
 
-## 3. Cambios por capa
+## 3. Cambios de la versión 2.0
 
-**Dominio**
-- `EstadoPreparacion` (nuevo): PENDIENTE, EN_PREPARACION, LISTO, CANCELADO. Sustituye al `listo` de sí/no.
-- `EstadoMesa`: se agrega `PENDIENTE_PAGO` (el ámbar).
-- `DetallePedido`: ronda, estado de preparación, fecha de envío, clave de envío, quién lo agregó, y motivo, quién y cuándo si se cancela. Las reglas de qué se puede modificar viven aquí.
-- `Pedido`: quién lo modificó y cuándo, clave de creación y rondas. El subtotal ya no cuenta lo cancelado, y al cancelar el pedido se saca de cocina lo que no estaba listo.
-- `Herramientas.Dinero` (nuevo): redondeo a dos decimales.
+**Base de datos (`BD/ScriptBDTaqueriaMiBuen.sql`, 30 tablas)**
+- Todo importe en DECIMAL(10,2).
+- `cuenta_rol` (varios roles por cuenta) y `contrasena_remota` para el administrador.
+- `mesa.id_mesa_principal` (mesas juntas) y `cambio_mesa` (bitácora).
+- `pedido.canal`, descuento (para CU-05); `pedido_domicilio` con tipo de repartidor y repartidor.
+- `producto` con `precio_apps`, `unidad_venta` (PIEZA o KILO), `pasa_por_parrilla` y `activo`; `paquete_componente` para los combos.
+- Insumos solo como catálogo (sin existencias ni receta), compras con proveedor opcional y abonos, salidas de caja, corte por forma de pago, `configuracion` (límite de descuento) y `plataforma` (comisión de cada app). Estas tablas las usará el siguiente equipo.
+- Se quitaron `producto_ingrediente`, `reporte_venta` y `reporte_venta_pedido`.
 
-**Persistencia**
-- `PedidoDAO`: envíos que no se duplican, turno de cocina apartado con `FOR UPDATE`, cambiar, quitar y cancelar un producto, y orden fijo de bloqueo (mesa, luego pedido, luego turno) para que dos transacciones no se queden esperando una a la otra.
-- `MesaDAO.recalcularEstado`: una sola regla para el color de la mesa, que usan enviar, cerrar, cancelar y cobrar.
-- `KdsDAO.cambiarEstado`: solo avanza hacia adelante y rechaza lo cancelado.
-- `PagoDAO`: usa la misma regla de la mesa.
-
-**Negocio**
-- `PedidoService` revisa todo lo que llega, aunque la pantalla ya lo haya validado.
-- Excepción nueva `ProductoNoDisponibleException`.
-- `KdsService.cambiarEstado`.
-
-**Control**
-- Rutas nuevas en `PedidoServlet`: `.../detalles/{id}/cantidad`, `.../quitar` y `.../cancelar`.
-- Ruta nueva en `KdsServlet`: `.../detalles/{id}/estado`.
-- El 409 trae los ids de los productos agotados.
-
-**Presentacion**
-- `pedido.js` es casi nuevo, sobre la misma estructura y estilo que ya tenía.
-- Se ajustaron `mesas.js`, `kds.js`, `datosEntrega.jsp` y `comun.js`.
-- En `estilos.css` solo se agregaron unas clases con los colores que ya existían; el diseño no cambió.
-
-**Base de datos**
-- `ScriptBDTaqueriaMiBuen.sql` (completo), `ActualizacionAdministrarPedido.sql` (para una base existente) y `DatosPrueba.sql`.
+**Código**
+- Dominio: dinero en BigDecimal (`Herramientas.Dinero`), enums `CanalPedido`, `UnidadVenta`, `TipoRepartidor` y `MetodoPago`, entidades `CambioMesa` y `PaqueteComponente`, cuenta con varios roles.
+- Persistencia: `PedidoDAO.cambiarMesa` y `listarActivosPorMesa`; `MesaDAO.juntarMesas`, `separarMesa` y `recalcularEstado` (le pasa el color a las mesas unidas y deshace el grupo al quedar libre).
+- Negocio: `PedidoService` con canal, precio de apps, kilos, envío y repartidor, cambiar y juntar mesas; `MenuService.obtenerProductosDeParrilla`; PIN de 4 dígitos.
+- Control: rutas `POST /api/pedidos/{id}/mesa`, `GET /api/pedidos?cuentasMesa=`, `POST /api/mesas/{id}/juntar` y `/separar`, `GET /api/kds/productos` y `POST /api/kds/productos/{id}/disponible`. La sesión guarda los roles separados por comas.
+- Se eliminó todo lo del reporte de rendimiento de empleados (CU-11), por indicación del profesor.
+- Se quitaron del repositorio las carpetas `target` (son archivos compilados; el `.gitignore` ya las ignora).
 
 ---
 
@@ -103,72 +92,50 @@ Empleados de prueba (los PIN se guardan cifrados con BCrypt, igual que en `Cuent
 8. **No había forma de marcar «En preparacion»** en cocina, así que la regla 2.2.10 no se podía cumplir.
 9. **Folio repetible.** Usaba la hora con milisegundos y dos pedidos en el mismo milisegundo chocaban. Se le agregaron dos dígitos.
 10. **Sesión.** Al iniciar sesión no se cambiaba el id de la sesión; ahora sí.
-11. **Pagos dobles.** La tabla `pago` no impedía dos pagos del mismo pedido. Se agregó UNIQUE como respaldo del bloqueo que ya existía.
+11. **Pagos dobles.** Un pedido no se puede cobrar dos veces: el cobro bloquea el pedido y solo acepta los que están POR_COBRAR. (En la versión 2.0 se quitó el UNIQUE de `pago` porque un pedido podrá tener varios pagos cuando se haga el pago mixto; se probó que tres cobros al mismo tiempo dejan un solo pago.)
 12. **Persistencia sobrante.** Sobraba un `persistence.xml` vacío de la plantilla de NetBeans dentro de Presentacion; se quitó.
 13. **Errores en HTML.** Si Tomcat contestaba con su página de error en HTML, la pantalla tronaba al leerla; ahora muestra un mensaje.
 14. **Cobro mostraba lo cancelado.** La ventana de cobro y el ticket de pago listaban también los productos cancelados (aunque el total sí estaba bien). Ahora solo salen los que se cobran.
 
 ---
 
-## 5. Inconsistencias entre documentos (para que el equipo decida)
+## 5. Decisiones tomadas (antes eran inconsistencias entre documentos)
 
-Los documentos no dicen lo mismo en varios puntos. Se tomó como base el **Modelo de Análisis y Diseño**, porque es la decisión técnica más reciente y el script de la base ya lo seguía. Lo del Detallado que no lo contradice sí se implementó. Conviene que actualicen el documento que quede atrás.
+Se revisaron todos los documentos contra el código y se decidió lo siguiente. Los documentos ya están corregidos con esto.
 
-1. **Estados del pedido y de la mesa.**
-   - El Detallado del CU habla de pedido «Cerrado», mesa «Cobrada» y de cerrar después de cobrar.
-   - El Modelo define ABIERTO, POR_COBRAR y PAGADO, y la mesa PENDIENTE_PAGO.
-   - Aquí, «Cerrar pedido» = solicitar la cuenta (POR_COBRAR, mesa en ámbar), y el cobro lo deja PAGADO y la mesa en verde.
-   - Si se quedan con la versión del Detallado, hay que agregar un estado CERRADO después del cobro.
-2. **Autorización.** El Detallado pide «usuario y contraseña» del cajero; el Modelo y el código usan PIN. Se quedó el PIN. Ojo: el login por PIN revisa todas las cuentas con BCrypt hasta encontrar la que coincide; con muchos empleados se hace lento, y dos personas no pueden tener el mismo PIN.
-3. **Acceso a datos.** Arquitectura dice JDBC + DAO y descarta JPA; el código usa JPA con Hibernate. Se dejó JPA porque todo está hecho así; hay que corregir el documento.
-4. **Paquetes.** Arquitectura dice que todo cuelga de `mx.itson.taqueria`; el código usa `Entidades`, `DAO`, `Servicios`... sin prefijo.
-5. **Versión de Java.** Arquitectura dice JDK 17 y los poms pedían 24. Se dejó 17, que también corre en JDK más nuevos.
-6. **Tiempos de consulta.** KDS a 5 s contra 1 s, y mesas a 10 s contra 3 s. Se alineó al diseño.
-7. **Categorías.** El CU menciona 4 (Tacos, Quesadillas, Especialidades y Bebidas) y el script traía 3. Se agregó Especialidades y el Lirio pasó ahí.
-8. **Dinero.** El Detallado pide dos decimales exactos y la base usaba DOUBLE. Se cambió a DECIMAL(10,2).
-9. **Referencias viejas.** El Modelo cita pasos como «2.2.2 Eliminar pedido» o «2.2.3 paso 2» que ya no coinciden con la numeración del Detallado v1.0.
-10. **Cerrar con productos pendientes.** El Detallado no deja cerrar sin cobrar si hay productos en cola; con la idea del Modelo (cerrar = pedir la cuenta) sí se permite y se avisa cuántos faltan. Es decisión del equipo.
+1. **Tecnología:** Java 17 + JPA (Hibernate) en 5 módulos Maven, MySQL 8 y Tomcat 10.1. La Arquitectura y el Modelo decían JDBC y un solo WAR; se corrigieron.
+2. **Caso de uso que manda:** el Detallado de CU-02, ahora versión 1.2 (se recuperó su historial 1.0 y 1.1).
+3. **Base de datos:** la del script de este paquete (30 tablas). Sustituye al script de 12 tablas que traía el Modelo.
+4. **Flujo de la mesa:** cerrar y luego cobrar. Disponible → Ocupada → Pendiente de pago → Disponible.
+5. **Cancelaciones:** las autoriza un cajero o el administrador con su PIN.
+6. **Monitor de cocina caído:** ticket de respaldo; y si no hay servidor, «Reintentar».
+7. **Casos de uso:** CU-00 a CU-10 con ID. Se eliminó CU-11 (rendimiento de empleados).
+8. **Despliegue:** el sistema corre en una laptop en la caja (la taquería sigue operando sin internet) y el dueño lo consulta desde fuera por un túnel seguro; desde internet solo entra el administrador con contraseña. Hay respaldo automático de la base en la nube.
+9. **Negocio:** monitor solo de parrilla; agotado lo marca la parrilla o el administrador; menú por pieza, kilo y paquete; precio de apps con comisión; envío según la zona; insumos solo catálogo; compras con abonos; descuentos hasta un límite configurable (inicia en 10%); cortesías registradas; no hay corte con cuentas pendientes; factura y propinas fuera del sistema.
+
+**Por confirmar con el cliente:** si las salidas de caja se pagan con dinero de la caja, el porcentaje de comisión de cada app y los precios reales de combos y venta por kilo.
 
 ---
 
 ## 6. Qué se probó y cómo salió
 
-Todo se probó en una máquina aparte, con MySQL 8.4 y Tomcat 10.1 de verdad y el WAR compilado de este mismo código.
+Todo se probó con MySQL 8 y Tomcat 10.1 de verdad y el WAR compilado de este mismo código. Hibernate validó todas las entidades contra las 30 tablas.
 
-- **Prueba completa por la API: 70 de 70 verificaciones pasaron.** Cubre:
-  - inicio de sesión;
-  - permisos por rol (el mesero ya no entra a Cobro y el cocinero no entra a pedidos);
-  - 13 validaciones de captura;
-  - flujo básico con importes;
-  - reintento sin duplicar, tanto al crear el pedido como en la ronda 2;
-  - dos meseros abriendo la misma mesa al mismo tiempo (uno entra y al otro le sale mesa ocupada);
-  - 12 rondas enviadas al mismo tiempo sin turnos repetidos;
-  - acentos;
-  - cambiar y quitar lo que está en cola;
-  - bloqueo de lo que está en preparación;
-  - PIN incorrecto o de mesero;
-  - cancelar un producto con PIN de cajero (el total baja lo correcto);
-  - producto dado de baja;
-  - precio congelado;
-  - cerrar, cuenta separada y colores de la mesa (rojo, ámbar, verde);
-  - cobro sin poder cobrar dos veces;
-  - domicilio con envío;
-  - cancelar el pedido completo.
-- **Script de actualización:** se corrió sobre una base hecha con el script viejo y con datos viejos adentro.
-  - Lo que estaba listo pasó a LISTO y lo pendiente a PENDIENTE.
-  - La mesa que estaba por cobrar quedó en ámbar.
-  - El Lirio pasó a Especialidades.
-  - La columna vieja se quitó.
-  - El sistema leyó bien esa base.
-  - Encima se corrió la prueba completa: 70 de 70.
-- **En el navegador** (escritorio 1366x768 y celular 390x844) se revisaron: el mapa de mesas con sus tres colores, el ticket por rondas con sus estados, «salir sin enviar», «Campo obligatorio» en rojo, «Sin conexion» con Reintentar (se cortó la red a propósito y al reintentar quedó **un solo** pedido) y el monitor de cocina. Sin errores de JavaScript.
-
-**No se corrieron:** las clases de prueba con `main` (`Pruebas/Persistencia.java` y `com/mycompany/negocio/Negocio.java`). Se ajustaron y compilan, pero no se ejecutaron.
+- **Pruebas de aceptación de CU-02 por la API: 45 de 45 pasaron.** Cubren el flujo básico con importes exactos (incluye medio kilo y un paquete), reintento sin duplicar, bebidas que no pasan por parrilla, piezas del paquete en el monitor, mesa ocupada y cuenta separada, cantidades por pieza y por kilo, bloqueo de lo que ya se prepara, agotado desde la parrilla (y que un mesero no pueda marcarlo), paquete agotado por su pieza, juntar, separar y cambiar de mesa, pedido de DiDi con precio de apps, domicilio con envío por zona y repartidor externo, cerrar, cancelar con PIN válido e inválido, varios roles en una cuenta y dos meseros abriendo la misma mesa al mismo tiempo.
+- **Ciclo completo:** pedir la cuenta → mesa en ámbar → cobrar → mesa libre. Tres cobros al mismo tiempo del mismo pedido dejan un solo pago.
+- **En el navegador** (tablet 1024x768, escritorio 1440x900 y celular 390x844) se recorrieron: mapa de mesas, captura con extras y kilos, envío a cocina, juntar mesas, para llevar por DiDi, validación del domicilio y monitor de parrilla con «Se acabó». Sin errores de JavaScript.
 
 ---
 
 ## 7. Pendientes
 
-- Decidir las inconsistencias del punto 5 y actualizar los documentos.
-- El resto de los casos de uso (Cobros completo, Administrar Menú, Empleados, Reportes) no se tocó más allá de lo necesario para que siga funcionando con lo nuevo.
-- La carpeta `taqueria-mi-buen` (el prototipo en Python que también trae la rama) no viene en este paquete; esta versión ya la superó.
+- **Pantallas:** el diseño visual se está rehaciendo con Google Stitch (más claro para gente que no usa tecnología: botones grandes con texto, deshacer en vez de confirmar, nada de error de dedo). La funcionalidad ya está; falta aplicar el diseño nuevo.
+- **Para el siguiente equipo:** el resto de los casos de uso. La base ya los soporta y el patrón es el mismo (Servlet → Service → DAO):
+  - CU-01 Administrar Menú (alta de productos, paquetes, extras, precio de apps).
+  - CU-04 Administrar Caja (salidas y corte por forma de pago, sin corte con cuentas pendientes).
+  - CU-05 Cobrar Pedido (hoy cobra un pedido completo con un método; falta pago mixto, dividir por consumo, descuentos, cortesías y pago adelantado de domicilio).
+  - CU-06/07 Proveedores, compras con abonos e insumos.
+  - CU-08 Empleados (con varios roles).
+  - CU-09/10 Reportes en vivo con filtros y comparativas.
+- **Clases de prueba con `main`** (`Pruebas/Persistencia.java` y `com/mycompany/negocio/Negocio.java`): se ajustaron y compilan, pero no se ejecutaron.
+- La carpeta `taqueria-mi-buen` (el prototipo en Python de la rama `feature/practica-web`) no viene en este paquete; se conserva en su rama como prototipo de interfaz.
