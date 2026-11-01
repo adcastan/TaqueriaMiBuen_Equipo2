@@ -1,20 +1,18 @@
 package Servicios;
 
 import DAO.CategoriaDAO;
-import DAO.IngredienteDAO;
 import DAO.IngredienteExtraDAO;
 import DAO.ProductoDAO;
 import DTO.ProductoDTO;
 import Entidades.Categoria;
-import Entidades.Ingrediente;
 import Entidades.IngredienteExtra;
 import Entidades.Producto;
 import Exceptions.NegocioException;
 import IAccesoDatos.ICategoriaDAO;
-import IAccesoDatos.IIngredienteDAO;
 import IAccesoDatos.IIngredienteExtraDAO;
 import IAccesoDatos.IProductoDAO;
 import IServicios.IMenuService;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -30,7 +28,6 @@ public class MenuService implements IMenuService {
     private final ICategoriaDAO categoriaDAO = new CategoriaDAO();
     private final IProductoDAO productoDAO = new ProductoDAO();
     private final IIngredienteExtraDAO extraDAO = new IngredienteExtraDAO();
-    private final IIngredienteDAO ingredienteDAO = new IngredienteDAO();
 
     /**
      * Regresa cada categoria con sus productos, en el orden del menu. Se
@@ -53,6 +50,22 @@ public class MenuService implements IMenuService {
             }
         }
         return menu;
+    }
+
+    /**
+     * Productos que prepara la parrilla, para que en el monitor se puedan
+     * marcar como agotados con un toque (RN-05).
+     */
+    @Override
+    public List<Producto> obtenerProductosDeParrilla() {
+        List<Producto> deParrilla = new ArrayList<>();
+        for (Producto producto : productoDAO.listarConExtras()) {
+            // Los paquetes no se marcan: se agotan solos si se acaba una de sus piezas
+            if (producto.isPasaPorParrilla() && !producto.esPaquete()) {
+                deParrilla.add(producto);
+            }
+        }
+        return deParrilla;
     }
 
     /**
@@ -141,21 +154,15 @@ public class MenuService implements IMenuService {
 
     // Da de alta un ingrediente extra con su precio
     @Override
-    public IngredienteExtra registrarExtra(String nombre, double precio, Integer idIngrediente) {
+    public IngredienteExtra registrarExtra(String nombre, BigDecimal precio) {
         if (nombre == null || nombre.isBlank()) {
             throw new NegocioException("Escribe el nombre del extra");
         }
-        if (precio < 0) {
+        // Precio cero = opcion sin costo ("Sin cebolla"); nunca negativo
+        if (precio == null || precio.signum() < 0) {
             throw new NegocioException("El precio del extra no puede ser negativo");
         }
-        Ingrediente ingrediente = null;
-        if (idIngrediente != null) {
-            ingrediente = ingredienteDAO.buscarPorId(idIngrediente);
-            if (ingrediente == null) {
-                throw new NegocioException("No existe el ingrediente " + idIngrediente);
-            }
-        }
-        IngredienteExtra extra = new IngredienteExtra(nombre.trim(), precio, ingrediente);
+        IngredienteExtra extra = new IngredienteExtra(nombre.trim(), precio);
         extraDAO.registrar(extra);
         return extra;
     }
@@ -171,7 +178,7 @@ public class MenuService implements IMenuService {
         if (dto == null || dto.getNombre() == null || dto.getNombre().isBlank()) {
             throw new NegocioException("Escribe el nombre del producto");
         }
-        if (dto.getPrecio() <= 0) {
+        if (dto.getPrecio() == null || dto.getPrecio().signum() <= 0) {
             throw new NegocioException("El precio debe ser mayor a cero");
         }
     }

@@ -5,6 +5,7 @@ import DAO.UsuarioDAO;
 import Entidades.Cuenta;
 import Entidades.Usuario;
 import Enums.Rol;
+import java.util.Set;
 import Exceptions.NegocioException;
 import IAccesoDatos.ICuentaDAO;
 import IAccesoDatos.IUsuarioDAO;
@@ -25,14 +26,14 @@ public class EmpleadoService implements IEmpleadoService {
 
     // Da de alta a un empleado con su PIN y su rol
     @Override
-    public Cuenta registrarEmpleado(String nombre, String telefono, String pin, Rol rol) {
+    public Cuenta registrarEmpleado(String nombre, String telefono, String pin, Rol... roles) {
         validar(nombre, telefono);
-        if (rol == null) {
-            throw new NegocioException("Selecciona el rol del empleado");
+        if (roles == null || roles.length == 0) {
+            throw new NegocioException("Selecciona al menos un rol para el empleado");
         }
         String tel = telefono == null || telefono.isBlank() ? null : telefono.trim();
         Usuario usuario = new Usuario(nombre.trim(), tel, LocalDate.now());
-        return autenticacionService.registrarCuenta(usuario, pin, rol);
+        return autenticacionService.registrarCuenta(usuario, pin, roles);
     }
 
     // Todos los empleados con su cuenta, para la pantalla de administracion
@@ -52,17 +53,17 @@ public class EmpleadoService implements IEmpleadoService {
         return usuario;
     }
 
-    // Cambia el rol de un empleado; no se permite dejar al local sin administrador
+    // Cambia los roles de un empleado; no se permite dejar al local sin administrador
     @Override
-    public void cambiarRol(int idUsuario, Rol rol) {
-        if (rol == null) {
-            throw new NegocioException("Selecciona el rol del empleado");
+    public void cambiarRoles(int idUsuario, Set<Rol> roles) {
+        if (roles == null || roles.isEmpty()) {
+            throw new NegocioException("Selecciona al menos un rol para el empleado");
         }
         Usuario usuario = obtenerUsuario(idUsuario);
-        if (rol != Rol.ADMINISTRADOR) {
+        if (!roles.contains(Rol.ADMINISTRADOR)) {
             revisarUltimoAdministrador(usuario);
         }
-        cuentaDAO.actualizarRol(idUsuario, rol);
+        cuentaDAO.actualizarRoles(idUsuario, roles);
     }
 
     // Baja logica: el empleado ya no puede entrar, pero su historial se queda
@@ -94,7 +95,7 @@ public class EmpleadoService implements IEmpleadoService {
         int administradores = 0;
         boolean esAdministrador = false;
         for (Cuenta cuenta : cuentaDAO.buscarActivas()) {
-            if (cuenta.getRol() == Rol.ADMINISTRADOR) {
+            if (cuenta.tieneRol(Rol.ADMINISTRADOR)) {
                 administradores++;
                 if (cuenta.getUsuario().getIdUsuario().equals(usuario.getIdUsuario())) {
                     esAdministrador = true;

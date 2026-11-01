@@ -1,5 +1,6 @@
 package DTO;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +30,15 @@ public class PedidoDTO {
 
     // Clave unica que inventa la pantalla para este envio; si se reintenta se manda la misma
     private String claveEnvio;
+
+    // Por donde llego el pedido: MESA, MOSTRADOR, TELEFONO, WHATSAPP, DIDI_FOOD o UBER_EATS
+    private String canal;
+
+    // Solo domicilio: costo de envio segun la zona, y quien lo lleva
+    private BigDecimal costoEnvio;
+    // PROPIO (empleado) o EXTERNO (DiDi, Uber, etc.)
+    private String tipoRepartidor;
+    private String repartidor;
 
     public PedidoDTO() {
     }
@@ -95,6 +105,38 @@ public class PedidoDTO {
 
     public void setDireccion(String direccion) {
         this.direccion = direccion;
+    }
+
+    public String getCanal() {
+        return canal;
+    }
+
+    public void setCanal(String canal) {
+        this.canal = canal;
+    }
+
+    public BigDecimal getCostoEnvio() {
+        return costoEnvio;
+    }
+
+    public void setCostoEnvio(BigDecimal costoEnvio) {
+        this.costoEnvio = costoEnvio;
+    }
+
+    public String getTipoRepartidor() {
+        return tipoRepartidor;
+    }
+
+    public void setTipoRepartidor(String tipoRepartidor) {
+        this.tipoRepartidor = tipoRepartidor;
+    }
+
+    public String getRepartidor() {
+        return repartidor;
+    }
+
+    public void setRepartidor(String repartidor) {
+        this.repartidor = repartidor;
     }
 
     public String getReferencias() {

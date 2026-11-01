@@ -1,5 +1,6 @@
 package DTO;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -13,7 +14,8 @@ import java.util.List;
 public class DetalleDTO {
 
     private int idProducto;
-    private int cantidad;
+    // Piezas (entero) o kilos (con decimales) segun el producto; llega como numero en el JSON
+    private BigDecimal cantidad;
     private String notaCocina;
     // Ids de los ingredientes extra que eligio el cliente
     private List<Integer> idsExtras = new ArrayList<>();
@@ -21,7 +23,7 @@ public class DetalleDTO {
     public DetalleDTO() {
     }
 
-    public DetalleDTO(int idProducto, int cantidad, String notaCocina) {
+    public DetalleDTO(int idProducto, BigDecimal cantidad, String notaCocina) {
         this.idProducto = idProducto;
         this.cantidad = cantidad;
         this.notaCocina = notaCocina;
@@ -35,11 +37,11 @@ public class DetalleDTO {
         this.idProducto = idProducto;
     }
 
-    public int getCantidad() {
+    public BigDecimal getCantidad() {
         return cantidad;
     }
 
-    public void setCantidad(int cantidad) {
+    public void setCantidad(BigDecimal cantidad) {
         this.cantidad = cantidad;
     }
 

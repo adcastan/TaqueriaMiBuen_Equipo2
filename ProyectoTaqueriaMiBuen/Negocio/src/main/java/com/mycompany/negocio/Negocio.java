@@ -30,6 +30,7 @@ import Servicios.AutenticacionService;
 import Servicios.KdsService;
 import Servicios.MenuService;
 import Servicios.PedidoService;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,16 +57,16 @@ public class Negocio {
             // 1. Registrar usuarios (si el PIN ya entra es que ya estaban registrados)
             System.out.println("--- 1. Registrar usuarios ---");
             try {
-                autenticacion.iniciarSesion("5555");
+                autenticacion.iniciarSesion("7101");
                 System.out.println("Los usuarios de prueba ya estaban registrados");
             } catch (NegocioException e) {
-                autenticacion.registrarCuenta(new Usuario("Mesero de prueba", null, LocalDate.now()), "5555", Rol.MESERO);
-                autenticacion.registrarCuenta(new Usuario("Cajero de prueba", null, LocalDate.now()), "6666", Rol.CAJERO);
-                System.out.println("Registrados: mesero (PIN 5555) y cajero (PIN 6666)");
+                autenticacion.registrarCuenta(new Usuario("Mesero de prueba", null, LocalDate.now()), "7101", Rol.MESERO);
+                autenticacion.registrarCuenta(new Usuario("Cajero de prueba", null, LocalDate.now()), "7102", Rol.CAJERO);
+                System.out.println("Registrados: mesero (PIN 7101) y cajero (PIN 7102)");
             }
             // Fallo: registrar otra cuenta con un PIN que ya existe
             try {
-                autenticacion.registrarCuenta(new Usuario("Otro mesero", null, LocalDate.now()), "5555", Rol.MESERO);
+                autenticacion.registrarCuenta(new Usuario("Otro mesero", null, LocalDate.now()), "7101", Rol.MESERO);
             } catch (NegocioException e) {
                 System.out.println("Fallo esperado: " + e.getMessage());
             }
@@ -78,15 +79,15 @@ public class Negocio {
                 categoriaDAO.registrar(categoria);
             }
             if (productoDAO.buscarPorNombre("Taco de prueba") == null) {
-                Producto nuevoTaco = new Producto(categoria, "Taco de prueba", "Taco con queso extra", 45.00);
-                nuevoTaco.getExtras().add(new IngredienteExtra("Queso extra de prueba", 15.00, null));
+                Producto nuevoTaco = new Producto(categoria, "Taco de prueba", "Taco con queso extra", new BigDecimal("45.00"));
+                nuevoTaco.getExtras().add(new IngredienteExtra("Queso extra de prueba", new BigDecimal("15.00")));
                 productoDAO.registrar(nuevoTaco);
             }
             if (productoDAO.buscarPorNombre("Refresco de prueba") == null) {
-                productoDAO.registrar(new Producto(categoria, "Refresco de prueba", "Lata 355 ml", 35.00));
+                productoDAO.registrar(new Producto(categoria, "Refresco de prueba", "Lata 355 ml", new BigDecimal("35.00")));
             }
             if (productoDAO.buscarPorNombre("Horchata de prueba") == null) {
-                Producto horchata = new Producto(categoria, "Horchata de prueba", "Producto agotado", 30.00);
+                Producto horchata = new Producto(categoria, "Horchata de prueba", "Producto agotado", new BigDecimal("30.00"));
                 horchata.setDisponible(false);
                 productoDAO.registrar(horchata);
             }
@@ -102,12 +103,12 @@ public class Negocio {
 
             // 3. AutenticacionService
             System.out.println("--- 3. AutenticacionService ---");
-            Usuario mesero = autenticacion.iniciarSesion("5555");
-            System.out.println("iniciarSesion(5555): " + mesero.getNombre());
-            System.out.println("obtenerRol: " + autenticacion.obtenerRol(mesero));
+            Usuario mesero = autenticacion.iniciarSesion("7101");
+            System.out.println("iniciarSesion(7101): " + mesero.getNombre());
+            System.out.println("obtenerRoles: " + autenticacion.obtenerRoles(mesero));
             System.out.println("tieneRol MESERO: " + autenticacion.tieneRol(mesero, Rol.MESERO));
-            Usuario cajero = autenticacion.validarAutorizacion("6666");
-            System.out.println("validarAutorizacion(6666): " + cajero.getNombre());
+            Usuario cajero = autenticacion.validarAutorizacion("7102");
+            System.out.println("validarAutorizacion(7102): " + cajero.getNombre());
             // Fallo: iniciar sesion con un PIN que no es de nadie
             try {
                 autenticacion.iniciarSesion("9876");
@@ -141,10 +142,10 @@ public class Negocio {
             dto.setTipo(PedidoDTO.LOCAL);
             dto.setIdMesa(mesa.getIdMesa());
             dto.setNumeroPersonas(2);
-            DetalleDTO tacos = new DetalleDTO(taco.getIdProducto(), 3, "Sin cebolla");
+            DetalleDTO tacos = new DetalleDTO(taco.getIdProducto(), BigDecimal.valueOf(3), "Sin cebolla");
             tacos.getIdsExtras().add(queso.getIdExtra());
             dto.getDetalles().add(tacos);
-            dto.getDetalles().add(new DetalleDTO(refresco.getIdProducto(), 2, null));
+            dto.getDetalles().add(new DetalleDTO(refresco.getIdProducto(), BigDecimal.valueOf(2), null));
             ResultadoEnvio resultado = pedidoService.crearPedido(dto, mesero);
             System.out.println("crearPedido: folio " + resultado.getFolio() + ", KDS conectado " + resultado.isKdsConectado());
             mostrarPedido(pedidoService.obtenerPedido(resultado.getIdPedido()));
@@ -175,7 +176,7 @@ public class Negocio {
             // 7. Agregar productos y cerrar el pedido
             System.out.println("--- 7. Agregar productos y cerrar ---");
             List<DetalleDTO> nuevos = new ArrayList<>();
-            nuevos.add(new DetalleDTO(refresco.getIdProducto(), 1, null));
+            nuevos.add(new DetalleDTO(refresco.getIdProducto(), BigDecimal.valueOf(1), null));
             pedidoService.agregarDetalles(resultado.getIdPedido(), nuevos);
             mostrarPedido(pedidoService.obtenerPedido(resultado.getIdPedido()));
             Pedido cerrado = pedidoService.cerrarPedido(resultado.getIdPedido());

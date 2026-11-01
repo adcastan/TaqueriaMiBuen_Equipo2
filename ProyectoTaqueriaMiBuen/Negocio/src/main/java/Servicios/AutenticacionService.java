@@ -4,6 +4,7 @@ import DAO.CuentaDAO;
 import Entidades.Cuenta;
 import Entidades.Usuario;
 import Enums.Rol;
+import java.util.Set;
 import Exceptions.NegocioException;
 import IAccesoDatos.ICuentaDAO;
 import IServicios.IAutenticacionService;
@@ -34,23 +35,24 @@ public class AutenticacionService implements IAutenticacionService {
     }
 
     /**
-     * Revisa si el usuario tiene el rol indicado.
+     * Revisa si el usuario tiene el rol indicado entre los suyos
+     * (una cuenta puede tener varios roles).
      */
     @Override
     public boolean tieneRol(Usuario usuario, Rol rol) {
-        return obtenerRol(usuario) == rol;
+        return obtenerRoles(usuario).contains(rol);
     }
 
     /**
-     * Rol de la cuenta del usuario, se guarda en la sesion al entrar.
+     * Roles de la cuenta del usuario; se guardan en la sesion al entrar.
      */
     @Override
-    public Rol obtenerRol(Usuario usuario) {
+    public Set<Rol> obtenerRoles(Usuario usuario) {
         Cuenta cuenta = cuentaDAO.buscarPorUsuario(usuario.getIdUsuario());
         if (cuenta == null) {
             throw new NegocioException("El usuario no tiene cuenta");
         }
-        return cuenta.getRol();
+        return cuenta.getRoles();
     }
 
     /**
@@ -85,14 +87,18 @@ public class AutenticacionService implements IAutenticacionService {
      * PIN.
      */
     @Override
-    public Cuenta registrarCuenta(Usuario usuario, String pin, Rol rol) {
-        if (pin == null || !pin.matches("\\d{4,6}")) {
-            throw new NegocioException("El PIN debe tener de 4 a 6 numeros");
+    public Cuenta registrarCuenta(Usuario usuario, String pin, Rol... roles) {
+        // El PIN es de 4 digitos y no se puede repetir: con el PIN se sabe quien entra
+        if (pin == null || !pin.matches("\\d{4}")) {
+            throw new NegocioException("El PIN debe tener 4 numeros");
+        }
+        if (roles == null || roles.length == 0) {
+            throw new NegocioException("Selecciona al menos un rol");
         }
         if (buscarCuentaPorPin(pin) != null) {
             throw new NegocioException("Ese PIN ingresado ya existe");
         }
-        Cuenta cuenta = new Cuenta(usuario, pin, rol);
+        Cuenta cuenta = new Cuenta(usuario, pin, roles);
         cuentaDAO.registrar(cuenta);
         return cuenta;
     }

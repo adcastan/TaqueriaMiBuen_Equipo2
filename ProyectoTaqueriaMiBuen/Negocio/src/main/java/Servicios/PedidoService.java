@@ -28,6 +28,11 @@ import IServicios.IImpresoraService;
 import IServicios.IKdsService;
 import IServicios.IMenuService;
 import IServicios.IPedidoService;
+import Entidades.PaqueteComponente;
+import Enums.CanalPedido;
+import Enums.TipoRepartidor;
+import Herramientas.Dinero;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -47,8 +52,10 @@ import java.util.Set;
  */
 public class PedidoService implements IPedidoService {
 
-    // Costo fijo de envio para los pedidos a domicilio
-    public static final double COSTO_ENVIO = 25.00;
+    // El envio ya no es fijo: depende de la zona y lo captura quien toma el pedido.
+    // Este tope solo evita errores de dedo (un 2500 en vez de 25)
+    public static final BigDecimal ENVIO_MAXIMO = new BigDecimal("500.00");
+    public static final int LARGO_REPARTIDOR = 100;
     public static final int PERSONAS_MINIMO = 1;
     public static final int PERSONAS_MAXIMO = 20;
     public static final int LARGO_NOMBRE = 100;
@@ -88,7 +95,8 @@ public class PedidoService implements IPedidoService {
         Pedido pedido = armarPedido(dto, usuario);
         pedido.setClaveCreacion(clave);
         for (DetalleDTO detalleDTO : dto.getDetalles()) {
-            DetallePedido detalle = armarDetalle(detalleDTO);
+            // El canal decide el precio: los pedidos de apps usan el precio de apps
+            DetallePedido detalle = armarDetalle(detalleDTO, pedido.getCanal());
             detalle.setClaveEnvio(clave);
             detalle.setAgregadoPor(usuario);
             pedido.agregarDetalle(detalle);
@@ -140,7 +148,8 @@ public class PedidoService implements IPedidoService {
         revisarDisponibilidad(detallesDTO);
         List<DetallePedido> nuevos = new ArrayList<>();
         for (DetalleDTO detalleDTO : detallesDTO) {
-            DetallePedido detalle = armarDetalle(detalleDTO);
+            // Las rondas nuevas usan el mismo canal (y precio) con el que se abrio el pedido
+            DetallePedido detalle = armarDetalle(detalleDTO, pedido.getCanal());
             detalle.setPedido(pedido);
             nuevos.add(detalle);
         }
@@ -158,9 +167,10 @@ public class PedidoService implements IPedidoService {
      * cocinero ya lo empezo, el DAO lo rechaza con el mensaje del flujo 2.2.10.
      */
     @Override
-    public Pedido cambiarCantidad(int idPedido, int idDetalle, int cantidad, Usuario usuario) {
+    public Pedido cambiarCantidad(int idPedido, int idDetalle, BigDecimal cantidad, Usuario usuario) {
         try {
-            DetallePedido.validarCantidad(cantidad);
+            // La regla de pieza entera o kilo con decimales la revisa DetallePedido
+            // dentro de la transaccion, porque ahi ya se sabe que producto es
             return pedidoDAO.cambiarCantidad(idPedido, idDetalle, cantidad, usuario);
         } catch (IllegalArgumentException e) {
             throw new NegocioException(e.getMessage());
@@ -274,6 +284,57 @@ public class PedidoService implements IPedidoService {
         return pedidoDAO.listarActivos();
     }
 
+    /**
+     * Cuentas vivas de una mesa. Con esto la pantalla puede mostrar las
+     * cuentas separadas de una mesa o de un grupo de mesas juntas (RN-14).
+     */
+    @Override
+    public List<Pedido> obtenerCuentasDeMesa(int idMesa) {
+        return pedidoDAO.listarActivosPorMesa(idMesa);
+    }
+
+    /**
+     * Pasa la cuenta a otra mesa libre: se mueve todo y queda en la bitacora
+     * quien lo hizo (RN-12). Las reglas de que mesa se puede usar estan en el DAO
+     * porque se revisan con las mesas bloqueadas.
+     */
+    @Override
+    public Pedido cambiarMesa(int idPedido, int idMesaDestino, Usuario usuario) {
+        if (usuario == null) {
+            throw new NegocioException("Inicia sesion para cambiar de mesa");
+        }
+        try {
+            return pedidoDAO.cambiarMesa(idPedido, idMesaDestino, usuario);
+        } catch (IllegalArgumentException e) {
+            throw new NegocioException(e.getMessage());
+        } catch (RuntimeException e) {
+            throw traducir(e);
+        }
+    }
+
+    /**
+     * Junta una mesa libre con la mesa principal del grupo (RN-13). Ejemplo:
+     * un grupo de 10 ocupa la 3 y la 4; la principal es la 3.
+     */
+    @Override
+    public void juntarMesas(int idPrincipal, int idMesa) {
+        try {
+            mesaDAO.juntarMesas(idPrincipal, idMesa);
+        } catch (RuntimeException e) {
+            throw traducir(e);
+        }
+    }
+
+    // Separa una mesa de su grupo; las cuentas se quedan en la principal
+    @Override
+    public void separarMesa(int idMesa) {
+        try {
+            mesaDAO.separarMesa(idMesa);
+        } catch (RuntimeException e) {
+            throw traducir(e);
+        }
+    }
+
     // Crea la subclase de pedido segun el tipo que eligio el mesero (subflujo "Tipar pedido")
     private Pedido armarPedido(PedidoDTO dto, Usuario usuario) {
         if (usuario == null) {
@@ -282,6 +343,8 @@ public class PedidoService implements IPedidoService {
         String tipo = dto.getTipo() == null ? "" : dto.getTipo();
         switch (tipo) {
             case PedidoDTO.LOCAL:
+                // En el local el canal siempre es MESA, diga lo que diga la pantalla
+                dto.setCanal(CanalPedido.MESA.name());
                 if (dto.getIdMesa() == null) {
                     throw new NegocioException("Selecciona una mesa");
                 }
@@ -294,14 +357,21 @@ public class PedidoService implements IPedidoService {
                 if (mesa == null) {
                     throw new NegocioException("La mesa no existe");
                 }
-                return new PedidoLocal(usuario, mesa, personas);
+                PedidoLocal local = new PedidoLocal(usuario, mesa, personas);
+                local.setCanal(CanalPedido.MESA);
+                return local;
             case PedidoDTO.LLEVAR:
                 String nombre = limpiar(dto.getNombreCliente());
                 if (nombre == null) {
                     throw new NegocioException("Escribe el nombre del cliente");
                 }
                 revisarLargo(nombre, LARGO_NOMBRE, "El nombre del cliente");
-                return new PedidoParaLlevar(usuario, nombre);
+                PedidoParaLlevar llevar = new PedidoParaLlevar(usuario, nombre);
+                // Para llevar puede llegar por mostrador, telefono, WhatsApp o una app
+                llevar.setCanal(leerCanal(dto.getCanal(), CanalPedido.MOSTRADOR,
+                        CanalPedido.MOSTRADOR, CanalPedido.TELEFONO, CanalPedido.WHATSAPP,
+                        CanalPedido.DIDI_FOOD, CanalPedido.UBER_EATS));
+                return llevar;
             case PedidoDTO.DOMICILIO:
                 String nombreEntrega = limpiar(dto.getNombreCliente());
                 String telefono = limpiar(dto.getTelefono());
@@ -314,25 +384,39 @@ public class PedidoService implements IPedidoService {
                 revisarLargo(nombreEntrega, LARGO_NOMBRE, "El nombre del cliente");
                 revisarLargo(direccion, LARGO_DIRECCION, "La direccion");
                 revisarLargo(referencias, LARGO_DIRECCION, "Las referencias");
-                return new PedidoDomicilio(usuario, COSTO_ENVIO, datos);
+                BigDecimal envio = validarEnvio(dto.getCostoEnvio());
+                PedidoDomicilio domicilio = new PedidoDomicilio(usuario, envio, datos);
+                // A domicilio llega por telefono o WhatsApp (lo de apps lo reparte la app: es "para llevar")
+                domicilio.setCanal(leerCanal(dto.getCanal(), CanalPedido.TELEFONO,
+                        CanalPedido.TELEFONO, CanalPedido.WHATSAPP));
+                domicilio.setTipoRepartidor(leerRepartidor(dto.getTipoRepartidor()));
+                String repartidor = limpiar(dto.getRepartidor());
+                revisarLargo(repartidor, LARGO_REPARTIDOR, "El repartidor");
+                domicilio.setRepartidor(repartidor);
+                return domicilio;
             default:
                 throw new NegocioException("Tipo de pedido no valido: " + tipo);
         }
     }
 
-    // Convierte lo que capturo el mesero en un DetallePedido con precio y extras reales
-    private DetallePedido armarDetalle(DetalleDTO dto) {
+    /**
+     * Convierte lo que capturo el mesero en un DetallePedido con precio y extras
+     * reales. El precio sale del menu (nunca de la pantalla) y depende del canal.
+     */
+    private DetallePedido armarDetalle(DetalleDTO dto, CanalPedido canal) {
         Producto producto = menuService.obtenerProducto(dto.getIdProducto());
         if (producto == null) {
             throw new NegocioException("No existe el producto " + dto.getIdProducto());
         }
-        if (dto.getCantidad() <= 0 || dto.getCantidad() > DetallePedido.CANTIDAD_MAXIMA) {
-            throw new NegocioException("La cantidad de " + producto.getNombre() + " debe ser de 1 a "
-                    + DetallePedido.CANTIDAD_MAXIMA);
+        try {
+            // Pieza: entero de 1 a 99. Kilo: con decimales, mayor a cero
+            DetallePedido.validarCantidad(producto, dto.getCantidad());
+        } catch (IllegalArgumentException e) {
+            throw new NegocioException(e.getMessage());
         }
         String nota = limpiar(dto.getNotaCocina());
         revisarLargo(nota, DetallePedido.LARGO_MAXIMO_NOTA, "La nota para cocina");
-        DetallePedido detalle = new DetallePedido(producto, dto.getCantidad(), nota);
+        DetallePedido detalle = new DetallePedido(producto, dto.getCantidad(), nota, canal);
         if (dto.getIdsExtras() != null) {
             // Un mismo extra dos veces seria cobrarle doble el queso al cliente
             Set<Integer> vistos = new HashSet<>();
@@ -379,7 +463,7 @@ public class PedidoService implements IPedidoService {
             if (producto == null) {
                 throw new NegocioException("No existe el producto " + d.getIdProducto());
             }
-            if (!producto.isDisponible() && !agotados.contains(producto.getIdProducto())) {
+            if (!sePuedePedir(producto) && !agotados.contains(producto.getIdProducto())) {
                 agotados.add(producto.getIdProducto());
                 nombres.add(producto.getNombre());
             }
@@ -387,6 +471,65 @@ public class PedidoService implements IPedidoService {
         if (!agotados.isEmpty()) {
             throw new ProductoNoDisponibleException("Producto no disponible: " + String.join(", ", nombres), agotados);
         }
+    }
+
+    /**
+     * Un producto se puede pedir si sigue en el menu y no se agoto. Si es un
+     * paquete, tambien tienen que estar todas sus piezas (sin carne no hay
+     * "paquete 3 tacos").
+     */
+    private boolean sePuedePedir(Producto producto) {
+        if (!producto.sePuedePedir()) {
+            return false;
+        }
+        for (PaqueteComponente pieza : producto.getComponentes()) {
+            if (!pieza.getComponente().sePuedePedir()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Lee el canal que manda la pantalla. Si no viene se usa el de siempre para
+     * ese tipo de pedido; si viene uno que no aplica (ej. DiDi para domicilio)
+     * se rechaza.
+     */
+    private CanalPedido leerCanal(String texto, CanalPedido porDefecto, CanalPedido... permitidos) {
+        String limpio = limpiar(texto);
+        if (limpio == null) {
+            return porDefecto;
+        }
+        for (CanalPedido c : permitidos) {
+            if (c.name().equals(limpio)) {
+                return c;
+            }
+        }
+        throw new NegocioException("El canal " + limpio + " no aplica para este tipo de pedido");
+    }
+
+    // PROPIO si no dicen nada; EXTERNO si lo lleva DiDi, Uber u otro servicio
+    private TipoRepartidor leerRepartidor(String texto) {
+        String limpio = limpiar(texto);
+        if (limpio == null) {
+            return TipoRepartidor.PROPIO;
+        }
+        try {
+            return TipoRepartidor.valueOf(limpio);
+        } catch (IllegalArgumentException e) {
+            throw new NegocioException("Tipo de repartidor no valido: " + limpio);
+        }
+    }
+
+    // El envio es obligatorio en domicilio (puede ser 0) y no puede pasar del tope
+    private BigDecimal validarEnvio(BigDecimal envio) {
+        if (envio == null) {
+            throw new NegocioException("Captura el costo de envio (puede ser 0)");
+        }
+        if (envio.signum() < 0 || envio.compareTo(ENVIO_MAXIMO) > 0) {
+            throw new NegocioException("El costo de envio debe ser de $0 a $" + ENVIO_MAXIMO);
+        }
+        return Dinero.redondear(envio);
     }
 
     // Solo un cajero o el administrador pueden autorizar cancelaciones (RN-03)

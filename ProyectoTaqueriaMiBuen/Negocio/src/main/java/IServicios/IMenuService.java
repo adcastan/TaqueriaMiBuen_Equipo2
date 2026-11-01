@@ -4,6 +4,7 @@ import DTO.ProductoDTO;
 import Entidades.Categoria;
 import Entidades.IngredienteExtra;
 import Entidades.Producto;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -40,8 +41,11 @@ public interface IMenuService {
     public void cambiarDisponibilidad(int idProducto, boolean disponible);
 
     // Registra un ingrediente extra que se puede agregar a los productos.
-    public IngredienteExtra registrarExtra(String nombre, double precio, Integer idIngrediente);
+    public IngredienteExtra registrarExtra(String nombre, BigDecimal precio);
 
     // Todos los ingredientes extra.
     public List<IngredienteExtra> obtenerExtras();
+
+    // Productos que prepara la parrilla (para marcar agotados desde el monitor)
+    public List<Producto> obtenerProductosDeParrilla();
 }

@@ -6,6 +6,7 @@ import DTO.ResultadoEnvio;
 import Entidades.Mesa;
 import Entidades.Pedido;
 import Entidades.Usuario;
+import java.math.BigDecimal;
 import java.util.List;
 
 /**
@@ -26,7 +27,7 @@ public interface IPedidoService {
     public ResultadoEnvio agregarDetalles(int idPedido, List<DetalleDTO> detallesDTO, Usuario usuario, String claveEnvio);
 
     // Cambia la cantidad de un producto que sigue en cola.
-    public Pedido cambiarCantidad(int idPedido, int idDetalle, int cantidad, Usuario usuario);
+    public Pedido cambiarCantidad(int idPedido, int idDetalle, BigDecimal cantidad, Usuario usuario);
 
     // Quita un producto que sigue en cola.
     public Pedido quitarDetalle(int idPedido, int idDetalle, Usuario usuario);
@@ -57,4 +58,16 @@ public interface IPedidoService {
 
     // Obtiene pedidos abiertos o por cobrar.
     public List<Pedido> obtenerPedidosActivos();
+
+    // Todas las cuentas vivas de una mesa (si esta junto a otra, las de su mesa principal)
+    public List<Pedido> obtenerCuentasDeMesa(int idMesa);
+
+    // Pasa una cuenta a otra mesa libre (RN-12)
+    public Pedido cambiarMesa(int idPedido, int idMesaDestino, Usuario usuario);
+
+    // Pega una mesa libre a la mesa principal de un grupo (RN-13)
+    public void juntarMesas(int idPrincipal, int idMesa);
+
+    // Despega una mesa de su grupo y la deja libre
+    public void separarMesa(int idMesa);
 }

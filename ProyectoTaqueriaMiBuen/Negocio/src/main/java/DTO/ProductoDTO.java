@@ -1,5 +1,6 @@
 package DTO;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,14 +13,14 @@ public class ProductoDTO {
     private int idCategoria;
     private String nombre;
     private String descripcion;
-    private double precio;
+    private BigDecimal precio;
     private boolean disponible = true;
     private List<Integer> idsExtras = new ArrayList<>();
 
     public ProductoDTO() {
     }
 
-    public ProductoDTO(int idCategoria, String nombre, String descripcion, double precio) {
+    public ProductoDTO(int idCategoria, String nombre, String descripcion, BigDecimal precio) {
         this.idCategoria = idCategoria;
         this.nombre = nombre;
         this.descripcion = descripcion;
@@ -50,11 +51,11 @@ public class ProductoDTO {
         this.descripcion = descripcion;
     }
 
-    public double getPrecio() {
+    public BigDecimal getPrecio() {
         return precio;
     }
 
-    public void setPrecio(double precio) {
+    public void setPrecio(BigDecimal precio) {
         this.precio = precio;
     }
 
