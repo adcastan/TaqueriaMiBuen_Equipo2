@@ -420,13 +420,12 @@ INSERT INTO categoria (nombre, orden) VALUES ('Tacos',1),('Quesadillas',2),('Esp
 -- Precios de ejemplo tomados de los mockups; el dueno captura los reales
 INSERT INTO producto (id_categoria, nombre, descripcion, precio, precio_apps, unidad_venta, pasa_por_parrilla) VALUES
   (1,'Taco de asada','Carne al carbón',40.00,52.00,'PIEZA',TRUE),
-  (1,'Asada doble carne','Doble porción de carne',75.00,86.00,'PIEZA',TRUE),
+  (1,'Gordita asada','Masa con carne asada',90.00,100.00,'PIEZA',TRUE),
   (2,'Quesadilla asada','Queso Oaxaca y carne asada',100.00,104.00,'PIEZA',TRUE),
-  (3,'Lirio','Especialidad de la casa',115.00,132.00,'PIEZA',TRUE),
-  (3,'Carne asada por kilo','Para llevar, con tortillas y salsas',420.00,NULL,'KILO',TRUE),
+  (3,'Lorenza','Especialidad de la casa',65.00,75.00,'PIEZA',TRUE),
+  (3,'Toro doble','Para llevar, con tortillas y salsas',120.00,NULL,'PIEZA',TRUE),
   (4,'Coca-Cola vidrio 355 ml','Bien fría',25.00,35.00,'PIEZA',FALSE),
-  (3,'Orden de guacamole','Lo prepara cocina',40.00,46.00,'PIEZA',FALSE),
-  (3,'Paquete 3 tacos y refresco','3 tacos de asada y una Coca-Cola',150.00,172.00,'PIEZA',TRUE);
+  (3,'Medio litro de frijol','Lo prepara cocina',20.00,26.00,'KILO',FALSE);
 INSERT INTO paquete_componente (id_paquete, id_componente, cantidad) VALUES (8,1,3),(8,6,1);
 INSERT INTO ingrediente_extra (nombre, precio) VALUES
   ('Tortilla de harina',5.00),('Queso extra',15.00),('Carne extra',30.00),('Aguacate',12.00),
