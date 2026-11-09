@@ -142,8 +142,25 @@ public class PedidoServlet extends HttpServlet {
         } catch (NegocioException | IllegalArgumentException e) {
             Json.error(resp, 400, e.getMessage());
         } catch (RuntimeException e) {
-            Json.error(resp, 500, "No se pudo completar la operacion: " + e.getMessage());
+           // Si la base no alcanzo a atender este envio por otro que llego al mismo tiempo,
+           // se le pide al mesero que vuelva a enviar en lugar de ensenarle el error de Hibernate.
+            if (esErrorDeadlock(e)) {
+                Json.error(resp, 503, "La cocina estaba recibiendo otro pedido, Toca <Enviar a cocina> otra vez.");
+            } else {
+                Json.error(resp, 500, "No se pudo completar la operacion: " + e.getMessage());
+            }
+    }
+    }
+    // true si el error viene de un error deadlock de MySQL (deadlock o espera muy larga) (fix de ERR 1)
+    private boolean esErrorDeadlock(Throwable e) {
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            String mensaje = String.valueOf(t.getMessage());
+            if (mensaje.contains("Deadlock") || mensaje.contains("Lock wait timeout")
+                    || t.getClass().getSimpleName().contains("LockAcquisition")) {
+                return true;
+            }
         }
+        return false;
     }
 
     // Acciones sobre el pedido completo: detalles (nueva ronda), cerrar o cancelar

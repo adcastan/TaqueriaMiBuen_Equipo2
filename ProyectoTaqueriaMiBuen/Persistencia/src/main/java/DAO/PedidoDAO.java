@@ -27,10 +27,10 @@ import java.util.List;
  * pise, cada operacion que cambia algo hace su trabajo dentro de UNA
  * transaccion y bloquea las filas que va a tocar siempre en el mismo orden:
  *
- *   1) la mesa,  2) el pedido,  3) el contador de turnos de la cocina.
+ * 1) la mesa, 2) el pedido, 3) el contador de turnos de la cocina.
  *
- * Es como la fila de las tortillas: si todos se forman igual, nadie se cuela
- * y nadie se queda atorado esperando al otro.
+ * Es como la fila de las tortillas: si todos se forman igual, nadie se cuela y
+ * nadie se queda atorado esperando al otro.
  *
  * Los errores de regla (mesa ocupada, producto ya en preparacion, etc.) se
  * avisan con IllegalStateException o IllegalArgumentException; la capa de
@@ -49,15 +49,18 @@ public class PedidoDAO implements IPedidoDAO {
     }
 
     /**
-     * Inserta un pedido nuevo con sus detalles (ronda 1) y regresa su id.
-     * Si es pedido local y la mesa ya esta ocupada, se rechaza, salvo que el
-     * mesero haya pedido abrir una cuenta separada (RN-01).
+     * Inserta un pedido nuevo con sus detalles (ronda 1) y regresa su id. Si es
+     * pedido local y la mesa ya esta ocupada, se rechaza, salvo que el mesero
+     * haya pedido abrir una cuenta separada (RN-01).
      */
     @Override
     public int insertarPedido(Pedido pedido, boolean cuentaSeparada) {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
             em.getTransaction().begin();
+            // El turno se aparta antes que cualquier otro proceso:
+            // Asi todos los envios hacen fila en el mismo lugar y no se pueden cruzar (ERR-01)
+            int turno = apartarTurnos(em, pedido.getDetalles().size());
             Mesa mesa = null;
             if (pedido instanceof PedidoLocal) {
                 PedidoLocal local = (PedidoLocal) pedido;
@@ -79,7 +82,6 @@ public class PedidoDAO implements IPedidoDAO {
                 local.setMesa(mesa);
             }
             LocalDateTime ahora = LocalDateTime.now();
-            int turno = siguienteOrdenCola(em);
             for (DetallePedido detalle : pedido.getDetalles()) {
                 detalle.setOrdenColaPedido(turno);
                 detalle.setRonda(1);
@@ -127,6 +129,8 @@ public class PedidoDAO implements IPedidoDAO {
         EntityManager em = JPAUtil.obtenerEntityManager();
         try {
             em.getTransaction().begin();
+            // Primero el turno y despues el pedido, en el mismo orden que insertarPedido (ERR-01)
+            int turno = apartarTurnos(em, detalles.size());
             Pedido pedido = em.find(Pedido.class, idPedido, LockModeType.PESSIMISTIC_WRITE);
             if (pedido == null) {
                 throw new IllegalArgumentException("No existe el pedido " + idPedido);
@@ -134,7 +138,8 @@ public class PedidoDAO implements IPedidoDAO {
             if (claveEnvio != null) {
                 Integer repetida = rondaPorClave(em, idPedido, claveEnvio);
                 if (repetida != null) {
-                    em.getTransaction().commit();
+                    // Era un reintento: no se guarda nada y el turno apartado se regresa
+                    em.getTransaction().rollback();
                     return repetida;
                 }
             }
@@ -142,7 +147,6 @@ public class PedidoDAO implements IPedidoDAO {
                 throw new IllegalStateException("Solo se pueden agregar productos a un pedido abierto");
             }
             int ronda = pedido.siguienteRonda();
-            int turno = siguienteOrdenCola(em);
             LocalDateTime ahora = LocalDateTime.now();
             Usuario quien = usuario == null ? null : em.find(Usuario.class, usuario.getIdUsuario());
             for (DetallePedido detalle : detalles) {
@@ -289,13 +293,13 @@ public class PedidoDAO implements IPedidoDAO {
      * rondas y lo que esta en la parrilla (el monitor lee la mesa del pedido,
      * asi que en el siguiente refresco ya sale con la mesa nueva).
      *
-     * Reglas:
-     * - el pedido tiene que ser local y seguir vivo (abierto o por cobrar);
-     * - la mesa destino tiene que estar libre y sola (no pegada a otra);
-     * - si la mesa de origen es parte de un grupo, primero se separan las mesas.
+     * Reglas: - el pedido tiene que ser local y seguir vivo (abierto o por
+     * cobrar); - la mesa destino tiene que estar libre y sola (no pegada a
+     * otra); - si la mesa de origen es parte de un grupo, primero se separan
+     * las mesas.
      *
-     * Para no trabarse con otro mesero se bloquean las dos mesas en orden de
-     * id (la menor primero) y despues el pedido, igual que en todo el DAO.
+     * Para no trabarse con otro mesero se bloquean las dos mesas en orden de id
+     * (la menor primero) y despues el pedido, igual que en todo el DAO.
      */
     @Override
     public Pedido cambiarMesa(int idPedido, int idMesaDestino, Usuario usuario) {
@@ -431,7 +435,8 @@ public class PedidoDAO implements IPedidoDAO {
 
     /**
      * Cancela un producto que ya se esta preparando o ya esta listo. Esto solo
-     * lo puede autorizar un cajero (eso lo revisa Negocio antes de llamar aqui).
+     * lo puede autorizar un cajero (eso lo revisa Negocio antes de llamar
+     * aqui).
      */
     @Override
     public Pedido cancelarDetalle(int idPedido, int idDetalle, String motivo, String autorizadoPor, Usuario usuario) {
@@ -462,8 +467,9 @@ public class PedidoDAO implements IPedidoDAO {
     }
 
     /**
-     * El cliente pidio la cuenta: se congela el total, el pedido queda POR_COBRAR
-     * y la mesa se recalcula (si ya no le queda nada abierto se pone en ambar).
+     * El cliente pidio la cuenta: se congela el total, el pedido queda
+     * POR_COBRAR y la mesa se recalcula (si ya no le queda nada abierto se pone
+     * en ambar).
      */
     @Override
     public Pedido cerrarPedido(int idPedido, Usuario usuario) {
@@ -501,9 +507,9 @@ public class PedidoDAO implements IPedidoDAO {
     }
 
     /**
-     * Cancela el pedido completo: se guarda el motivo y quien autorizo, se sacan
-     * de cocina los productos que no estaban listos y la mesa se recalcula.
-     * Nunca se borra nada.
+     * Cancela el pedido completo: se guarda el motivo y quien autorizo, se
+     * sacan de cocina los productos que no estaban listos y la mesa se
+     * recalcula. Nunca se borra nada.
      */
     @Override
     public Pedido cancelarPedido(int idPedido, String motivo, String autorizadaPor, Usuario usuario) {
@@ -593,14 +599,15 @@ public class PedidoDAO implements IPedidoDAO {
     }
 
     /**
-     * Siguiente turno de la cocina, dentro de la transaccion que ya esta abierta.
-     * El "FOR UPDATE" es el truco: aparta el ultimo turno hasta que termine la
-     * transaccion, asi si dos meseros mandan al mismo tiempo, el segundo espera
-     * su turno (literal) y nunca salen dos comandas con el mismo numero.
+     * Siguiente turno de la cocina, dentro de la transaccion que ya esta
+     * abierta. El "FOR UPDATE" es el truco: aparta el ultimo turno hasta que
+     * termine la transaccion, asi si dos meseros mandan al mismo tiempo, el
+     * segundo espera su turno (literal) y nunca salen dos comandas con el mismo
+     * numero.
      */
     private int siguienteOrdenCola(EntityManager em) {
         Object ultimo = em.createNativeQuery(
-                "SELECT COALESCE(MAX(orden_cola_pedido), 0) FROM detalle_pedido FOR UPDATE")
+                "SELECT COALESCE(MAX(orden_cola_pedido), 0) FROM detalle_pedido")
                 .getSingleResult();
         return ((Number) ultimo).intValue() + 1;
     }
@@ -657,5 +664,33 @@ public class PedidoDAO implements IPedidoDAO {
         if (pedido.getUsuarioModifico() != null) {
             pedido.getUsuarioModifico().getNombre();
         }
+    }
+
+    /**
+     * Aparta los turnos de cocina que va a usar este envio y regresa el
+     * primero. Antes se sacaba el MAX de detalle_pedido con FOR UPDATE, pero
+     * ese candado cae en el "hueco" al final de la tabla y dos meseros lo
+     * podian tener al mismo tiempo, asi que chocaban (deadlock, ERR-01). Ahora
+     * el ultimo turno vive en un solo renglon de configuracion: el segundo
+     * mesero espera a que el primero termine y luego toma el que sigue.
+     */
+    private int apartarTurnos(EntityManager em, int cuantos) {
+        List<?> fila = em.createNativeQuery(
+                "SELECT valor FROM configuracion WHERE clave = 'ULTIMO_TURNO_COCINA' FOR UPDATE")
+                .getResultList();
+        int ultimo;
+        if (fila.isEmpty()) {
+            // Si la base no trae el renglon se arranca desde el turno mas alto que ya existe
+            ultimo = siguienteOrdenCola(em) - 1;
+            em.createNativeQuery("INSERT INTO configuracion (clave, valor) VALUES ('ULTIMO_TURNO_COCINA', ?)")
+                    .setParameter(1, String.valueOf(ultimo + cuantos))
+                    .executeUpdate();
+        } else {
+            ultimo = Integer.parseInt(fila.get(0).toString());
+            em.createNativeQuery("UPDATE configuracion SET valor = ? WHERE clave = 'ULTIMO_TURNO_COCINA'")
+                    .setParameter(1, String.valueOf(ultimo + cuantos))
+                    .executeUpdate();
+        }
+        return ultimo + 1;
     }
 }
