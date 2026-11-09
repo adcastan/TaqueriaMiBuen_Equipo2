@@ -92,7 +92,7 @@ Toda la logica de la pantalla esta en pedido.js.
                     <div class="ticket-items" id="lineasTicket"></div>
                     <div class="ticket-summary">
                         <div class="subtotal"><span id="textoSubtotal">0 productos</span><span id="subtotal">$0.00</span></div>
-                        <div class="subtotal" id="lineaEnvio" hidden><span>Costo de envio</span><span>$25.00</span></div>
+                       <div class="subtotal" id="lineaEnvio" hidden><span>Costo de envio</span><span id="costoEnvioTicket">$0.00</span></div>
                         <div class="ticket-total"><span>TOTAL<small>MXN</small></span><strong id="total">$0.00</strong></div>
                         <div class="ticket-actions" id="accionesTicket"></div>
                         <p class="ticket-note" id="notaTicket"></p>

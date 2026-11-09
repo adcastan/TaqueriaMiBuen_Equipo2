@@ -636,6 +636,8 @@ function dibujarTicket() {
     document.getElementById('textoSubtotal').textContent = piezas + ' productos';
     document.getElementById('subtotal').textContent = dinero(calcularTotal() - costoEnvio());
     document.getElementById('lineaEnvio').hidden = tipo !== 'DOMICILIO';
+    // El monto del envio sale de lo que se capturo, no de un texto fijo (ERR-02)
+    document.getElementById('costoEnvioTicket').textContent = dinero(costoEnvio());
     document.getElementById('total').textContent = dinero(calcularTotal());
     document.getElementById('resumenPendientes').textContent = detalles.length + ' por enviar';
 
