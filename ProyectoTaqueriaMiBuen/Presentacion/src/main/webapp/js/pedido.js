@@ -132,8 +132,10 @@ function textoCantidad(cantidad, unidad) {
 
 // Costo de envio del domicilio: el que ya tiene el pedido o el que se capturo
 function costoEnvio() {
-    if (tipo !== 'DOMICILIO') return 0;
-    if (pedidoActual) return Number(pedidoActual.costoEnvio || 0);
+    if (tipo !== 'DOMICILIO')
+        return 0;
+    if (pedidoActual)
+        return Number(pedidoActual.costoEnvio || 0);
     return Number((datosEntrega && datosEntrega.costoEnvio) || 0);
 }
 
@@ -155,12 +157,13 @@ function elegirCanal(nuevo) {
 // Pinta los botones de canal (solo para un pedido para llevar nuevo)
 function dibujarCanales() {
     const contenedor = document.getElementById('canales');
-    if (!contenedor) return;
+    if (!contenedor)
+        return;
     const opciones = ['MOSTRADOR', 'TELEFONO', 'WHATSAPP', 'DIDI_FOOD', 'UBER_EATS'];
     contenedor.innerHTML = opciones.map(c =>
         '<button type="button" class="custom-option ' + (canal === c ? 'active' : '') + '" onclick="elegirCanal(\'' + c + '\')">'
-        + NOMBRES_CANAL[c] + '</button>').join('')
-        + (esDeApp() ? '<small class="muted">Se usa el precio de apps.</small>' : '');
+                + NOMBRES_CANAL[c] + '</button>').join('')
+            + (esDeApp() ? '<small class="muted">Se usa el precio de apps.</small>' : '');
 }
 
 /**
@@ -282,8 +285,8 @@ function dibujarPersonalizar() {
     // Las opciones sin costo ("Sin cebolla") van aparte de los extras que se cobran,
     // asi no sale un confuso "+ $0.00"
     const boton = e => '<button type="button" class="custom-option ' + (extrasElegidos.includes(e.idExtra) ? 'active' : '') + '" '
-            + 'onclick="alternarExtra(' + e.idExtra + ')">' + escapar(e.nombre)
-            + (Number(e.precio) > 0 ? '<span class="tag">+ ' + dinero(e.precio) + '</span>' : '') + '</button>';
+                + 'onclick="alternarExtra(' + e.idExtra + ')">' + escapar(e.nombre)
+                + (Number(e.precio) > 0 ? '<span class="tag">+ ' + dinero(e.precio) + '</span>' : '') + '</button>';
     const sinCosto = p.extras.filter(e => Number(e.precio) === 0);
     const conCosto = p.extras.filter(e => Number(e.precio) > 0);
     let extrasHtml = '';
@@ -337,7 +340,7 @@ function panelKilos() {
             ).join('') + '</div>'
             + '<div class="field"><label for="otrosKilos">Otra cantidad (kg)</label>'
             + '<input id="otrosKilos" type="number" inputmode="decimal" min="0.05" max="20" step="0.05" value="' + cantidadElegida + '" '
-            + 'onchange="elegirKilos(Number(this.value))"></div></div>';
+            + 'oninput="escribirKilos(this.value)" onchange="avisarKilos(this.value)"></div></div>';
 }
 
 // Notas que mas se piden; un toque las agrega a la nota para no teclear
@@ -347,7 +350,8 @@ const NOTAS_RAPIDAS = ['Bien dorado', 'Termino medio', 'Bien cocido', 'Poca sal'
 function agregarNotaRapida(texto) {
     const campo = document.getElementById('notaCocina');
     const actual = campo.value.trim();
-    if (actual.toLowerCase().includes(texto.toLowerCase())) return;
+    if (actual.toLowerCase().includes(texto.toLowerCase()))
+        return;
     const nuevo = actual ? actual + ', ' + texto.toLowerCase() : texto;
     campo.value = nuevo.slice(0, 150);
 }
@@ -367,7 +371,24 @@ function elegirKilos(kilos) {
     cantidadElegida = Math.round(kilos * 1000) / 1000;
     dibujarPersonalizar();
 }
-
+// Mientras escribe los kilos solo se actualiza el precio del boton, sin volver a dibujar la ventana.
+// Si se redibuja, el primer toque en "Agregar al pedido" se pierde (ERR-04)
+function escribirKilos(texto) {
+    const kilos = Number(texto);
+    if (kilos >= 0.05 && kilos <= 20) {
+        cantidadElegida = Math.round(kilos * 1000) / 1000;
+        const precio = document.querySelector('#modal-root .modal-footer .btn.primary strong');
+        if (precio)
+            precio.textContent = dinero(importeElegido());
+    }
+}
+// Al salir del campo solo se avisa si los kilos no son validos (tampoco se redibuja).
+function avisarKilos(texto) {
+    const kilos = Number(texto);
+    if (!(kilos >= 0.05 && kilos <= 20)) {
+        mostrarAviso('Escribe una cantidad de 0.05 a 20 kg', true);
+    }
+}
 // Prende o apaga un extra en la ventana
 function alternarExtra(idExtra) {
     if (extrasElegidos.includes(idExtra)) {
@@ -391,10 +412,15 @@ function importeElegido() {
 // Pasa lo que se eligio en la ventana a la lista temporal del pedido
 function confirmarProducto() {
     const nota = document.getElementById('notaCocina').value.trim();
-    // Si escribieron los kilos y no le dieron Enter, se toma lo que dice el campo
+    // Si escribieron los kilos y no le dieron Enter, se toma lo que dice el campo.
     const campoKilos = document.getElementById('otrosKilos');
-    if (campoKilos && Number(campoKilos.value) > 0) {
-        cantidadElegida = Math.round(Number(campoKilos.value) * 1000) / 1000;
+    if (campoKilos && campoKilos.value !== '') {
+        const kilos = Number(campoKilos.value);
+        if (!(kilos >= 0.05 && kilos <= 20)) {
+            mostrarAviso('Escribe una cantidad de 0.05 a 20 kg', true);
+            return;
+        }
+        cantidadElegida = Math.round(kilos * 1000) / 1000;
     }
     const i = agregarDetalle(productoElegido.idProducto, cantidadElegida);
     for (const idExtra of extrasElegidos) {
@@ -674,18 +700,24 @@ function dibujarAcciones() {
     if (cuentasMesa.length > 1) {
         html += '<div class="ticket-round">CUENTAS DE ESTA MESA</div>' + cuentasMesa.map((c, n) =>
             '<a class="btn ' + (pedidoActual && c.idPedido === pedidoActual.idPedido ? 'primary' : 'outline') + ' full" '
-            + 'href="tomarPedido.jsp?pedido=' + c.idPedido + '">CUENTA ' + (n + 1) + ' - ' + dinero(c.total) + '</a>').join('');
+                    + 'href="tomarPedido.jsp?pedido=' + c.idPedido + '">CUENTA ' + (n + 1) + ' - ' + dinero(c.total) + '</a>').join('');
     }
 
     document.getElementById('accionesTicket').innerHTML = html;
 
     let nota = 'Los productos nuevos se mandan a la cola de cocina al enviar.';
-    if (pedidoAbierto() && detalles.length === 0) nota = 'Agregue al menos un producto';
-    if (pedidoActual && pedidoActual.estado === 'POR_COBRAR') nota = 'El pedido ya pidio la cuenta. El cobro se hace en caja.';
-    if (pedidoActual && pedidoActual.estado === 'PAGADO') nota = 'El pedido ya fue pagado.';
-    if (pedidoActual && pedidoActual.estado === 'CANCELADO') nota = 'El pedido fue cancelado.';
-    if (detalles.length && pedidoActual) nota = 'Envia los productos nuevos antes de cerrar el pedido.';
-    if (detalles.some(d => d.agotado)) nota = 'Quita o cambia los productos marcados como no disponibles.';
+    if (pedidoAbierto() && detalles.length === 0)
+        nota = 'Agregue al menos un producto';
+    if (pedidoActual && pedidoActual.estado === 'POR_COBRAR')
+        nota = 'El pedido ya pidio la cuenta. El cobro se hace en caja.';
+    if (pedidoActual && pedidoActual.estado === 'PAGADO')
+        nota = 'El pedido ya fue pagado.';
+    if (pedidoActual && pedidoActual.estado === 'CANCELADO')
+        nota = 'El pedido fue cancelado.';
+    if (detalles.length && pedidoActual)
+        nota = 'Envia los productos nuevos antes de cerrar el pedido.';
+    if (detalles.some(d => d.agotado))
+        nota = 'Quita o cambia los productos marcados como no disponibles.';
     document.getElementById('notaTicket').textContent = nota;
 }
 
@@ -698,7 +730,8 @@ function marcarCampo(idCampo, mensaje) {
     let aviso = contenedor.querySelector('.field-error');
     if (!mensaje) {
         contenedor.classList.remove('invalid');
-        if (aviso) aviso.remove();
+        if (aviso)
+            aviso.remove();
         return;
     }
     contenedor.classList.add('invalid');
@@ -825,7 +858,8 @@ function manejarErrorDeEnvio(e) {
             d.agotado = agotados.includes(d.idProducto);
         }
         claveEnvioPendiente = null;
-        cargarMenu().catch(() => {});
+        cargarMenu().catch(() => {
+        });
         dibujarTicket();
         mostrarAviso(e.message, true);
         return;
@@ -894,8 +928,8 @@ function campoPin() {
             + '<input id="pinAutoriza" type="hidden" value="">'
             + '<div class="pin-puntos" id="pinPuntos"><span></span><span></span><span></span><span></span></div>'
             + '<div class="teclado-pin">' + teclas.map(t => t === ''
-                ? '<span></span>'
-                : '<button type="button" onclick="teclaPin(\'' + t + '\')">' + t + '</button>').join('') + '</div></div>';
+                        ? '<span></span>'
+                        : '<button type="button" onclick="teclaPin(\'' + t + '\')">' + t + '</button>').join('') + '</div></div>';
 }
 
 // Una tecla del teclado de PIN: agrega el numero o borra el ultimo
@@ -961,7 +995,7 @@ function confirmarCerrar() {
     const pendientes = pedidoActual.pendientesCocina || 0;
     // Resumen corto de lo que se va a cobrar, para revisarlo con el cliente
     const lineas = activos.map(d => '<div><span>' + textoCantidad(d.cantidad, d.unidadVenta) + ' x ' + escapar(d.producto)
-            + '</span><strong>' + dinero(d.importe) + '</strong></div>').join('');
+                + '</span><strong>' + dinero(d.importe) + '</strong></div>').join('');
     abrirModal(
             '<div class="modal-basic"><h2>Pedir la cuenta - ' + escapar(textoDestino()) + '</h2>'
             + '<div class="resumen-lineas">' + lineas + '</div>'
