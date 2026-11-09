@@ -25,11 +25,11 @@ import java.util.List;
 /**
  * Platillo, bebida o paquete del menu (CU-01 Administrar Menu).
  *
- * Tiene dos banderas que se confunden facil, por eso van explicadas:
- * - disponible: false cuando se agoto en el dia (se acabo la carne). Lo marca
- *   la parrilla o el administrador y al dia siguiente se vuelve a prender.
- * - activo: false cuando el producto se dio de baja del menu para siempre.
- *   No se borra porque hay pedidos viejos que lo usan.
+ * Tiene dos banderas que se confunden facil, por eso van explicadas: -
+ * disponible: false cuando se agoto en el dia (se acabo la carne). Lo marca la
+ * parrilla o el administrador y al dia siguiente se vuelve a prender. - activo:
+ * false cuando el producto se dio de baja del menu para siempre. No se borra
+ * porque hay pedidos viejos que lo usan.
  *
  * @author Equipo 2
  */
@@ -99,8 +99,8 @@ public class Producto implements Serializable {
     }
 
     /**
-     * Precio que se le cobra al cliente segun por donde llego el pedido:
-     * si es de una app se usa el precio de apps (cuando existe), si no el normal.
+     * Precio que se le cobra al cliente segun por donde llego el pedido: si es
+     * de una app se usa el precio de apps (cuando existe), si no el normal.
      */
     public BigDecimal precioPara(CanalPedido canal) {
         if (canal != null && canal.esDeApp() && precioApps != null) {
@@ -109,9 +109,20 @@ public class Producto implements Serializable {
         return precio;
     }
 
-    // true si se puede agregar a un pedido: sigue en el menu y no se ha agotado
+    // true si se puede agregar a un pedido: sigue en el menu y no se ha agotado.
+    // Un paquete tambien se acaba si se acaba cualquiera de sus piezas (ERR-03)
     public boolean sePuedePedir() {
-        return activo && disponible;
+        if (!activo || !disponible) {
+            return false;
+        }
+        if (esPaquete()) {
+            for (PaqueteComponente pieza : componentes) {
+                if (!pieza.getComponente().sePuedePedir()) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     // true si el producto es un combo armado con otros productos
