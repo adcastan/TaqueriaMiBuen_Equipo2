@@ -34,6 +34,9 @@ Cada pagina pone el atributo "seccion" antes de incluirlo para marcar el boton a
         <% if (veCocina) {%>
         <a class="<%= "cocina".equals(seccion) ? "active" : ""%>" href="kds.jsp">Monitor de cocina</a>
         <% }%>
+        <% if (esAdmin) {%>
+                <a class="<%= "reportes".equals(seccion) ? "active" : ""%>" href="reportes.jsp">Reportes</a>
+                <% }%>
     </nav>
     <div class="header-side">
         <span class="clock" id="reloj"></span>

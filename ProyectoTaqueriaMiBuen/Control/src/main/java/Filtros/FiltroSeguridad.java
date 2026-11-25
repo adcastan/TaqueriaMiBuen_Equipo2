@@ -29,6 +29,7 @@ public class FiltroSeguridad implements Filter {
     private static final List<String> ROLES_COCINA = List.of("COCINERO", "ADMINISTRADOR");
     private static final List<String> ROLES_PEDIDOS = List.of("MESERO", "CAJERO", "ADMINISTRADOR");
     private static final List<String> ROLES_CAJA = List.of("CAJERO", "ADMINISTRADOR");
+    private static final List<String> ROLES_REPORTES = List.of("ADMINISTRADOR");
     
     // Pasa por aqui TODA peticion: si no hay sesion o el rol no tiene permiso, no la deja seguir
     @Override
@@ -52,6 +53,8 @@ public class FiltroSeguridad implements Filter {
 
         boolean esCocina = ruta.startsWith("/api/kds") || ruta.equals("/kds.jsp");
         boolean esCaja = ruta.startsWith("/api/cobros") || ruta.equals("/cobro.jsp");
+        boolean esReporte = ruta.startsWith("/api/reportes") || ruta.equals("/reportes.jsp");
+
         // Cada zona tiene sus roles: cocina, caja o pedidos. Antes la caja no se
         // revisaba y un mesero podia abrir la pantalla de cobro escribiendo la ruta
         List<String> permitidos = ROLES_PEDIDOS;
@@ -59,7 +62,9 @@ public class FiltroSeguridad implements Filter {
             permitidos = ROLES_COCINA;
         } else if (esCaja) {
             permitidos = ROLES_CAJA;
-        }
+        } else if (esReporte) { 
+            permitidos = ROLES_REPORTES; 
+}
         if (!ruta.equals("/logout") && !tieneAlguno(roles, permitidos)) {
             negar(req, resp, 403, "Tu rol no tiene permiso para esta pantalla");
             return;
